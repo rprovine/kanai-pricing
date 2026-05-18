@@ -125,8 +125,87 @@ export const LABOR_RATE = 100;          // $/hour/person beyond the included
 export const INCLUDED_HOURS = 2;         // hours of labor included in a full truck
 export const INCLUDED_CREW = 2;          // people included in the labor pool
 
+// ─── Labor auto-estimation (Kilo's difficulty model, promoted in v0.3
+// to be the canonical labor-estimation approach across the ecosystem).
+// Estimators pick a truck fraction + difficulty rating and get a
+// suggested labor-hours number; the customer's labor cost is then
+// whatever EXCEEDS the included 2hrs × 2-crew baseline. ──────────────
+export type Difficulty = "easy" | "moderate" | "difficult";
+
+/** Hours of labor a full crew is expected to take per truck fraction. */
+export const LABOR_HOURS_BY_FRACTION: Record<string, number> = {
+  None: 0,
+  Empty: 0,
+  Minimum: 0.5,
+  "1/8": 0.5,
+  "1/6": 0.5,
+  "1/4": 0.75,
+  "1/3": 1.0,
+  "3/8": 1.0,
+  "1/2": 1.25,
+  "5/8": 1.5,
+  "2/3": 1.5,
+  "3/4": 1.75,
+  "5/6": 1.75,
+  "7/8": 2.0,
+  Full: 2.0,
+};
+
+/** Multiplier applied on top of the base hours from LABOR_HOURS_BY_FRACTION. */
+export const DIFFICULTY_LABOR_MULTIPLIERS: Record<Difficulty, number> = {
+  easy: 1.0,
+  moderate: 1.3,
+  difficult: 1.7,
+};
+
+/**
+ * Auto-estimate labor hours for a given truck fraction + difficulty.
+ * Multi-load aware: each full load adds 2 hours, then the remainder
+ * fraction adds its own LABOR_HOURS_BY_FRACTION lookup. Returns a
+ * value rounded to 0.1.
+ */
+export function estimateLaborHours(
+  truckFraction: string | null | undefined,
+  truckFullLoads: number | string | null | undefined = 0,
+  difficulty: Difficulty | string | null | undefined = "easy",
+): number {
+  const fullLoads = Number(truckFullLoads) || 0;
+  let baseHours = fullLoads * 2;
+  const remainderKey = truckFraction || "None";
+  if (remainderKey !== "None" && remainderKey !== "Empty") {
+    baseHours += LABOR_HOURS_BY_FRACTION[remainderKey] ?? LABOR_HOURS_BY_FRACTION["1/2"];
+  }
+  const multiplier = DIFFICULTY_LABOR_MULTIPLIERS[(difficulty || "easy") as Difficulty] ?? 1.0;
+  return Math.round(baseHours * multiplier * 10) / 10;
+}
+
+/**
+ * Cost of labor BEYOND the included 2hrs × 2-crew baseline.
+ *   - Extra hours past the included 2 are billed at LABOR_RATE per
+ *     person, for up to INCLUDED_CREW people.
+ *   - Crew members beyond INCLUDED_CREW are billed at LABOR_RATE for
+ *     all estimated hours (not just the extra portion).
+ * Returns dollars, rounded to the cent.
+ */
+export function calculateLaborCost(
+  estimatedHours: number | string | null | undefined,
+  crewSize: number | string | null | undefined = INCLUDED_CREW,
+): number {
+  const hours = Number(estimatedHours) || 0;
+  const crew = Number(crewSize) || INCLUDED_CREW;
+  if (hours <= 0) return 0;
+  const extraHours = Math.max(0, hours - INCLUDED_HOURS);
+  const extraCrew = Math.max(0, crew - INCLUDED_CREW);
+  const extraHoursCost = extraHours * Math.min(crew, INCLUDED_CREW) * LABOR_RATE;
+  const extraCrewCost = hours * extraCrew * LABOR_RATE;
+  return Math.round((extraHoursCost + extraCrewCost) * 100) / 100;
+}
+
 // ─── Hawaii tax ─────────────────────────────────────────────────────
+/** Decimal form, for multiplication (e.g. subtotal * HI_TAX_RATE). */
 export const HI_TAX_RATE = 0.04712;
+/** Percentage form, for display (e.g. "Tax (4.712%)"). */
+export const HI_TAX_PERCENT = 4.712;
 
 // ─── Free-Estimate closing bonus tiers (per the EOD repo) ───────────
 // Bonus is paid to the tech who gave the FREE estimate, regardless
@@ -211,6 +290,13 @@ export type JunkEstimateInput = {
   // Labor + crew
   crewSize?: number | string;
   estimatedHours?: number | string;
+  /**
+   * Optional. When set AND `estimatedHours` is not, hours are auto-
+   * estimated via `estimateLaborHours(truckFraction, truckFullLoads,
+   * difficulty)`. If `estimatedHours` is also set, it wins and
+   * difficulty is informational only.
+   */
+  difficulty?: Difficulty | string;
   // Dump
   dumpLocation?: string;
   overrideWeight?: number | string;
@@ -294,15 +380,21 @@ export function calculateJunkEstimate(input: JunkEstimateInput): JunkEstimateRes
 
     // Labor — 2 hours of 2-person labor is included with a full truck.
     // Beyond that, $100/hr per extra person.
-    const crewSize = Number(input.crewSize) || 2;
-    const estimatedHours = parseFloat(String(input.estimatedHours || "0")) || 0;
-    let laborCost = 0;
-    if (estimatedHours > 0 && (estimatedHours > INCLUDED_HOURS || crewSize > INCLUDED_CREW)) {
-      const extraHours = Math.max(0, estimatedHours - INCLUDED_HOURS);
-      const extraCrew = Math.max(0, crewSize - INCLUDED_CREW);
-      laborCost += extraHours * Math.min(crewSize, INCLUDED_CREW) * LABOR_RATE;
-      laborCost += estimatedHours * extraCrew * LABOR_RATE;
-    }
+    //
+    // If the caller didn't pass estimatedHours but DID pass a
+    // difficulty, auto-estimate via the labor-difficulty model
+    // (v0.3+, originally from Kilo). Explicit estimatedHours always
+    // wins. Default difficulty is "easy" which produces the same
+    // numbers as v0.2 for typical inputs (a Full truck on easy =
+    // 2 hours = INCLUDED_HOURS, so labor cost stays $0).
+    const crewSize = Number(input.crewSize) || INCLUDED_CREW;
+    const explicitHours = parseFloat(String(input.estimatedHours || "0")) || 0;
+    const estimatedHours = explicitHours > 0
+      ? explicitHours
+      : (input.difficulty != null
+          ? estimateLaborHours(input.truckFraction, input.truckFullLoads, input.difficulty as Difficulty)
+          : 0);
+    const laborCost = calculateLaborCost(estimatedHours, crewSize);
 
     const weightLbs = estimateWeight(fraction, input.truckFullLoads);
     // Dump fee is operational — Kanai's cost, never charged to the

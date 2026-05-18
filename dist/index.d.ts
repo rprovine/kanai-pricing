@@ -7,4 +7,5 @@
  * `./junk` or (eventually) `./dumpster`.
  */
 export * from "./junk";
+export * from "./dumpster";
 //# sourceMappingURL=index.d.ts.map

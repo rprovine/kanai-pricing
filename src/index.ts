@@ -8,3 +8,4 @@
  */
 
 export * from "./junk";
+export * from "./dumpster";

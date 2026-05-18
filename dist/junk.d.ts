@@ -82,7 +82,31 @@ export declare const DUMP_LOCATIONS: Record<string, {
 export declare const LABOR_RATE = 100;
 export declare const INCLUDED_HOURS = 2;
 export declare const INCLUDED_CREW = 2;
+export type Difficulty = "easy" | "moderate" | "difficult";
+/** Hours of labor a full crew is expected to take per truck fraction. */
+export declare const LABOR_HOURS_BY_FRACTION: Record<string, number>;
+/** Multiplier applied on top of the base hours from LABOR_HOURS_BY_FRACTION. */
+export declare const DIFFICULTY_LABOR_MULTIPLIERS: Record<Difficulty, number>;
+/**
+ * Auto-estimate labor hours for a given truck fraction + difficulty.
+ * Multi-load aware: each full load adds 2 hours, then the remainder
+ * fraction adds its own LABOR_HOURS_BY_FRACTION lookup. Returns a
+ * value rounded to 0.1.
+ */
+export declare function estimateLaborHours(truckFraction: string | null | undefined, truckFullLoads?: number | string | null | undefined, difficulty?: Difficulty | string | null | undefined): number;
+/**
+ * Cost of labor BEYOND the included 2hrs × 2-crew baseline.
+ *   - Extra hours past the included 2 are billed at LABOR_RATE per
+ *     person, for up to INCLUDED_CREW people.
+ *   - Crew members beyond INCLUDED_CREW are billed at LABOR_RATE for
+ *     all estimated hours (not just the extra portion).
+ * Returns dollars, rounded to the cent.
+ */
+export declare function calculateLaborCost(estimatedHours: number | string | null | undefined, crewSize?: number | string | null | undefined): number;
+/** Decimal form, for multiplication (e.g. subtotal * HI_TAX_RATE). */
 export declare const HI_TAX_RATE = 0.04712;
+/** Percentage form, for display (e.g. "Tax (4.712%)"). */
+export declare const HI_TAX_PERCENT = 4.712;
 export declare const ESTIMATE_BONUS_TIERS: {
     min: number;
     max: number;
@@ -131,6 +155,13 @@ export type JunkEstimateInput = {
     carpetDemoSqft?: number | string;
     crewSize?: number | string;
     estimatedHours?: number | string;
+    /**
+     * Optional. When set AND `estimatedHours` is not, hours are auto-
+     * estimated via `estimateLaborHours(truckFraction, truckFullLoads,
+     * difficulty)`. If `estimatedHours` is also set, it wins and
+     * difficulty is informational only.
+     */
+    difficulty?: Difficulty | string;
     dumpLocation?: string;
     overrideWeight?: number | string;
     discount?: number | string;
