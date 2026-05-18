@@ -1,0 +1,10 @@
+node_modules/
+*.log
+.DS_Store
+.env
+.env.*
+# dist/ is committed so consumers installing via `npm install
+# github:rprovine/kanai-pricing` work even when their npm doesn't
+# run the `prepare` lifecycle (older npm, frozen lockfiles, etc.).
+# The `prepare` script still rebuilds it on every install, but
+# committing keeps the package usable as a pure git dependency.

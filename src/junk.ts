@@ -1,0 +1,322 @@
+/**
+ * Junk removal pricing — 2026 Kanai's rate sheet.
+ *
+ * Single source of truth for:
+ *   - Truckload pricing (15 CY truck, Minimum → Full)
+ *   - Environmental fees (mattress, freon, e-waste, tires, batteries, etc.)
+ *   - Other rates (carpet demo, hot tubs, pianos, towing, etc.)
+ *   - Dump location per-ton rates
+ *   - Labor calc (included vs extra crew hours)
+ *   - Free Estimate Closing Bonus tier table
+ *   - Free Estimate vs Est&Rem distinction (only free estimates earn
+ *     the bonus per the EOD repo's rule)
+ *
+ * Customer-facing booking, the crew app's on-site quote, and
+ * /api/estimates respond all flow through these helpers. Owners can
+ * override any rate in /settings → Junk pricing (per-app); the
+ * defaults below are the printed rate-sheet values.
+ */
+
+// ─── Truckload pricing ───────────────────────────────────────────────
+// 15 Cubic Yard Truck Load Pricing (12' L × 7' W × 4' H)
+export const LOAD_PRICES: Record<string, number> = {
+  Minimum: 187,
+  "1/8": 315,
+  "1/6": 385,
+  "1/4": 455,
+  "1/3": 525,
+  "3/8": 595,
+  "1/2": 675,
+  "5/8": 745,
+  "2/3": 795,
+  "3/4": 855,
+  "5/6": 895,
+  "7/8": 935,
+  Full: 980,
+};
+
+export const FRACTION_VALUES: Record<string, number> = {
+  None: 0,
+  Minimum: 0.0625,
+  "1/8": 0.125,
+  "1/6": 0.167,
+  "1/4": 0.25,
+  "1/3": 0.333,
+  "3/8": 0.375,
+  "1/2": 0.5,
+  "5/8": 0.625,
+  "2/3": 0.667,
+  "3/4": 0.75,
+  "5/6": 0.833,
+  "7/8": 0.875,
+  Full: 1.0,
+};
+
+export const FRACTION_OPTIONS = [
+  "None", "Minimum", "1/8", "1/6", "1/4", "1/3", "3/8",
+  "1/2", "5/8", "2/3", "3/4", "5/6", "7/8", "Full",
+] as const;
+
+// ─── Dumpster rental (same as dispatch_tasks pricing — kept here so
+// the on-site estimator can quote a dumpster alongside a haul) ───────
+export const DUMPSTER_PRICES = {
+  "15yd": { short: 800, long: 850, label: "15 Yard (1-2 day: $800 / 3-5 day: $850)" },
+  "20yd": { short: 850, long: 900, label: "20 & 25 Yard (1-2 day: $850 / 3-5 day: $900)" },
+  "25yd": { short: 850, long: 900, label: "20 & 25 Yard (1-2 day: $850 / 3-5 day: $900)" },
+  "30yd": { short: 950, long: 1000, label: "30 Yard (1-2 day: $950 / 3-5 day: $1,000)" },
+} as const;
+
+// ─── Environmental fees (per the 2026 rate sheet) ────────────────────
+export const ENV_FEES = {
+  freon: 52.50,           // per unit (AC, refrigerator, water dispenser, mini fridge, freezer)
+  ewaste: 1.00,           // per lb (TV, computer, etc.)
+  mattressSingle: 50.00,  // per mattress OR box spring
+  mattressSet: 100.00,    // mattress + box spring as a pair
+  tire: 36.75,            // standard with rim
+  tireNoRim: 31.50,
+  tireSemiTractor: 150.00,
+  bike: 10.50,
+  battery: 20.00,         // car battery (golf-cart+ starts at $40 — handled in OTHER_RATES)
+  dirtbike: 150.00,       // starting
+  motorcycle: 250.00,     // moped / motorcycle, starting
+  carTruck: 250.00,       // car/truck removal starting
+  fluorescentLight: 2.50, // per bulb
+  wetPaint1gal: 25.00,
+  wetPaint5gal: 75.00,
+  waterHeater: 42.00,
+  waterHeaterLarge: 90.00,// industrial, starting
+} as const;
+
+export const OTHER_RATES = {
+  carpetDemo: 3.00,       // per sq ft
+  basketballHoop: 125.00,
+  bedBugs: 600.00,        // starting (job-specific quote required)
+  carTowing: 200.00,      // starting
+  constructionDebris: 100.00, // additional
+  golfCart: 250.00,       // starting (or larger battery)
+  greenWaste: 100.00,     // additional per load
+  haulingPerHour: 100.00, // per person per hour, 3-hour minimum
+  hotTub: 500.00,         // starting
+  paintedConcrete: 400.00,// additional
+  pianoRemoval: 250.00,   // starting (piano size-dependent)
+  fridgeCleanOut: 200.00, // when refrigerator has spoiled food
+  shedDemo: 400.00,       // starting (size-dependent)
+} as const;
+
+// ─── Dump locations & per-ton rates ─────────────────────────────────
+// Subset of dispatch_dump_locations that's commonly used by the junk
+// side. The dispatch table holds the canonical address + minimum-tons
+// per site; these are the rate-sheet defaults so the estimator can
+// compute a quote without a DB roundtrip.
+export const DUMP_LOCATIONS: Record<string, { perTon: number; label: string }> = {
+  "H-Power": { perTon: 100, label: "H-Power ($100/ton)" },
+  "Keehi": { perTon: 124, label: "Keehi ($124/ton)" },
+  "ABC": { perTon: 140, label: "ABC ($140/ton)" },
+  "West Oahu": { perTon: 17, label: "West Oahu ($17/ton)" },
+  "Hawaiian Earth": { perTon: 80, label: "Hawaiian Earth ($80/ton)" },
+  "Metals": { perTon: 40, label: "Metals — credit $40/ton" },
+  "PVT": { perTon: 105, label: "PVT ($105/ton)" },
+  "Island Demo": { perTon: 90, label: "Island Demo ($90/ton)" },
+};
+
+// ─── Labor & weight ─────────────────────────────────────────────────
+const FULL_TRUCK_LBS = 3500;
+export const LABOR_RATE = 100;          // $/hour/person beyond the included
+export const INCLUDED_HOURS = 2;         // hours of labor included in a full truck
+export const INCLUDED_CREW = 2;          // people included in the labor pool
+
+// ─── Hawaii tax ─────────────────────────────────────────────────────
+export const HI_TAX_RATE = 0.04712;
+
+// ─── Free-Estimate closing bonus tiers (per the EOD repo) ───────────
+// Bonus is paid to the tech who gave the FREE estimate, regardless
+// of who did the removal. Est&Rem (estimate-and-removal combos)
+// don't qualify for the bonus — only standalone free estimates.
+//
+// Monthly qualification: tech must close 30%+ of their decided
+// estimates (won + lost + expired + cancelled) to earn ANY bonus.
+// Open estimates don't count toward the ratio.
+export const ESTIMATE_BONUS_TIERS: { min: number; max: number; bonus: number }[] = [
+  { min: 0,      max: 500,    bonus: 10  },
+  { min: 500,    max: 1000,   bonus: 15  },
+  { min: 1000,   max: 2500,   bonus: 25  },
+  { min: 2500,   max: 5000,   bonus: 40  },
+  { min: 5000,   max: 10000,  bonus: 60  },
+  { min: 10000,  max: 25000,  bonus: 100 },
+  { min: 25000,  max: 50000,  bonus: 150 },
+  { min: 50000,  max: Infinity, bonus: 200 },
+];
+
+export const BONUS_QUALIFICATION_PCT = 0.30;
+
+// ─── Helpers ────────────────────────────────────────────────────────
+
+export function estimateWeight(truckFraction: string | null | undefined, truckFullLoads: number | string | null | undefined): number {
+  const fracVal = FRACTION_VALUES[truckFraction || "None"] || 0;
+  const fullLoadLbs = (Number(truckFullLoads) || 0) * FULL_TRUCK_LBS;
+  return Math.round(fracVal * FULL_TRUCK_LBS + fullLoadLbs);
+}
+
+export function calculateDumpFee(location: string | null | undefined, weightLbs: number): number {
+  if (!location || !DUMP_LOCATIONS[location]) return 0;
+  const tons = weightLbs / 2000;
+  return Math.round(DUMP_LOCATIONS[location].perTon * tons * 100) / 100;
+}
+
+/**
+ * Bonus tier lookup. Returns the dollar payout for a single won
+ * estimate at the given job revenue. The monthly qualification
+ * percentage is enforced separately by the bonus calc job that
+ * walks an estimator's monthly tracker history.
+ */
+export function bonusForRevenue(jobRevenue: number): number {
+  for (const tier of ESTIMATE_BONUS_TIERS) {
+    if (jobRevenue >= tier.min && jobRevenue < tier.max) return tier.bonus;
+  }
+  return 0;
+}
+
+/**
+ * Inputs the on-site wizard collects + bookings forms send. Mirrors
+ * the EstimateWizard's form-data shape so the existing form can be
+ * pointed at /api/estimates with minimal payload changes.
+ */
+export type JunkEstimateInput = {
+  truckFraction?: string;
+  truckFullLoads?: number | string;
+  dumpster15Count?: number | string;
+  dumpster20Count?: number | string;
+  dumpster25Count?: number | string;
+  dumpster30Count?: number | string;
+  // Environmental fee counts (mirroring the form's field names)
+  freonCount?: number | string;
+  ewasteLbs?: number | string;
+  mattressSingleCount?: number | string;
+  mattressSetCount?: number | string;
+  tireWithRimCount?: number | string;
+  tireNoRimCount?: number | string;
+  tireSemiCount?: number | string;
+  bikeCount?: number | string;
+  batteryCount?: number | string;
+  dirtbikeCount?: number | string;
+  motorcycleCount?: number | string;
+  carTruckCount?: number | string;
+  fluorescentCount?: number | string;
+  wetPaint1galCount?: number | string;
+  wetPaint5galCount?: number | string;
+  waterHeaterCount?: number | string;
+  waterHeaterLargeCount?: number | string;
+  greenWasteCount?: number | string;
+  carpetDemoSqft?: number | string;
+  // Labor + crew
+  crewSize?: number | string;
+  estimatedHours?: number | string;
+  // Dump
+  dumpLocation?: string;
+  overrideWeight?: number | string;
+  // Money adjustments
+  discount?: number | string;
+};
+
+export type JunkEstimateResult = {
+  basePrice: number;          // truck + dumpsters
+  truckPrice: number;
+  dumpsterPrice: number;
+  envFees: number;
+  envBreakdown: Record<string, number>;
+  laborCost: number;
+  dumpFee: number;
+  weightLbs: number;
+  discount: number;
+  subtotal: number;           // basePrice + envFees + laborCost + dumpFee − discount
+  tax: number;
+  total: number;
+};
+
+/**
+ * The canonical junk-removal estimator. Returns a complete breakdown
+ * so /q/[slug] can render every line item and /api/estimates can
+ * persist the components alongside the headline total.
+ *
+ * Never throws — returns a zeroed result on bad input so the caller
+ * doesn't have to wrap every render in try/catch.
+ */
+export function calculateJunkEstimate(input: JunkEstimateInput): JunkEstimateResult {
+  try {
+    const fraction = input.truckFraction || "None";
+    const fullLoads = Number(input.truckFullLoads) || 0;
+
+    let truckPrice = 0;
+    if (fraction !== "None" && LOAD_PRICES[fraction] != null) {
+      truckPrice += LOAD_PRICES[fraction];
+    }
+    if (fullLoads > 0) truckPrice += fullLoads * LOAD_PRICES.Full;
+
+    // Dumpsters use the 3-5 day (long) rate as the default estimate.
+    const d15 = (Number(input.dumpster15Count) || 0) * DUMPSTER_PRICES["15yd"].long;
+    const d20 = (Number(input.dumpster20Count) || 0) * DUMPSTER_PRICES["20yd"].long;
+    const d25 = (Number(input.dumpster25Count) || 0) * DUMPSTER_PRICES["25yd"].long;
+    const d30 = (Number(input.dumpster30Count) || 0) * DUMPSTER_PRICES["30yd"].long;
+    const dumpsterPrice = d15 + d20 + d25 + d30;
+
+    const basePrice = truckPrice + dumpsterPrice;
+
+    const envBreakdown: Record<string, number> = {
+      freon: (Number(input.freonCount) || 0) * ENV_FEES.freon,
+      ewaste: (Number(input.ewasteLbs) || 0) * ENV_FEES.ewaste,
+      mattressSingle: (Number(input.mattressSingleCount) || 0) * ENV_FEES.mattressSingle,
+      mattressSet: (Number(input.mattressSetCount) || 0) * ENV_FEES.mattressSet,
+      tireWithRim: (Number(input.tireWithRimCount) || 0) * ENV_FEES.tire,
+      tireNoRim: (Number(input.tireNoRimCount) || 0) * ENV_FEES.tireNoRim,
+      tireSemi: (Number(input.tireSemiCount) || 0) * ENV_FEES.tireSemiTractor,
+      bikes: (Number(input.bikeCount) || 0) * ENV_FEES.bike,
+      batteries: (Number(input.batteryCount) || 0) * ENV_FEES.battery,
+      dirtbikes: (Number(input.dirtbikeCount) || 0) * ENV_FEES.dirtbike,
+      motorcycles: (Number(input.motorcycleCount) || 0) * ENV_FEES.motorcycle,
+      carTruck: (Number(input.carTruckCount) || 0) * ENV_FEES.carTruck,
+      fluorescent: (Number(input.fluorescentCount) || 0) * ENV_FEES.fluorescentLight,
+      wetPaint1gal: (Number(input.wetPaint1galCount) || 0) * ENV_FEES.wetPaint1gal,
+      wetPaint5gal: (Number(input.wetPaint5galCount) || 0) * ENV_FEES.wetPaint5gal,
+      waterHeater: (Number(input.waterHeaterCount) || 0) * ENV_FEES.waterHeater,
+      waterHeaterLarge: (Number(input.waterHeaterLargeCount) || 0) * ENV_FEES.waterHeaterLarge,
+      greenWaste: (Number(input.greenWasteCount) || 0) * OTHER_RATES.greenWaste,
+      carpetDemo: (Number(input.carpetDemoSqft) || 0) * OTHER_RATES.carpetDemo,
+    };
+    const envFees = Object.values(envBreakdown).reduce((s, v) => s + v, 0);
+
+    // Labor — 2 hours of 2-person labor is included with a full truck.
+    // Beyond that, $100/hr per extra person.
+    const crewSize = Number(input.crewSize) || 2;
+    const estimatedHours = parseFloat(String(input.estimatedHours || "0")) || 0;
+    let laborCost = 0;
+    if (estimatedHours > 0 && (estimatedHours > INCLUDED_HOURS || crewSize > INCLUDED_CREW)) {
+      const extraHours = Math.max(0, estimatedHours - INCLUDED_HOURS);
+      const extraCrew = Math.max(0, crewSize - INCLUDED_CREW);
+      laborCost += extraHours * Math.min(crewSize, INCLUDED_CREW) * LABOR_RATE;
+      laborCost += estimatedHours * extraCrew * LABOR_RATE;
+    }
+
+    const weightLbs = estimateWeight(fraction, input.truckFullLoads);
+    const dumpFee = calculateDumpFee(input.dumpLocation, Number(input.overrideWeight) || weightLbs);
+    const discount = Number(input.discount) || 0;
+    const subtotal = Math.max(0, basePrice + envFees + laborCost + dumpFee - discount);
+    const tax = Math.round(subtotal * HI_TAX_RATE * 100) / 100;
+    const total = Math.round((subtotal + tax) * 100) / 100;
+
+    return {
+      basePrice, truckPrice, dumpsterPrice,
+      envFees, envBreakdown,
+      laborCost,
+      dumpFee, weightLbs,
+      discount, subtotal, tax, total,
+    };
+  } catch {
+    return {
+      basePrice: 0, truckPrice: 0, dumpsterPrice: 0,
+      envFees: 0, envBreakdown: {},
+      laborCost: 0,
+      dumpFee: 0, weightLbs: 0,
+      discount: 0, subtotal: 0, tax: 0, total: 0,
+    };
+  }
+}

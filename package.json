@@ -1,0 +1,29 @@
+{
+  "name": "@kanai/pricing",
+  "version": "0.1.0",
+  "description": "Shared pricing constants and calculators for the Kanai ecosystem (junk removal + dumpster rental). Single source of truth consumed by kanai-dispatch, kanai-estimator-tool, kanai-website, and the public booking forms.",
+  "license": "UNLICENSED",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepare": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rprovine/kanai-pricing.git"
+  }
+}
