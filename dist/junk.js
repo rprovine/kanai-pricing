@@ -228,9 +228,15 @@ function calculateJunkEstimate(input) {
             laborCost += estimatedHours * extraCrew * exports.LABOR_RATE;
         }
         const weightLbs = estimateWeight(fraction, input.truckFullLoads);
+        // Dump fee is operational — Kanai's cost, never charged to the
+        // customer. Computed here so the breakdown can show it to
+        // dispatch for margin tracking, but explicitly EXCLUDED from
+        // subtotal/tax/total. (Per business rule: estimated dump cost
+        // is meaningless at quote time anyway — the real number comes
+        // off the receipt at the dump after the job's done.)
         const dumpFee = calculateDumpFee(input.dumpLocation, Number(input.overrideWeight) || weightLbs);
         const discount = Number(input.discount) || 0;
-        const subtotal = Math.max(0, basePrice + envFees + laborCost + dumpFee - discount);
+        const subtotal = Math.max(0, basePrice + envFees + laborCost - discount);
         const tax = Math.round(subtotal * exports.HI_TAX_RATE * 100) / 100;
         const total = Math.round((subtotal + tax) * 100) / 100;
         return {

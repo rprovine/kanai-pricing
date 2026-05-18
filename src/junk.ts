@@ -225,10 +225,18 @@ export type JunkEstimateResult = {
   envFees: number;
   envBreakdown: Record<string, number>;
   laborCost: number;
+  /**
+   * Estimated operational dump cost. NEVER charged to the customer
+   * and NEVER rolled into subtotal/tax/total. Returned for internal
+   * accounting / margin tracking only. The actual dump cost is
+   * captured per-receipt at job completion and isn't known at
+   * quote time.
+   */
   dumpFee: number;
   weightLbs: number;
   discount: number;
-  subtotal: number;           // basePrice + envFees + laborCost + dumpFee − discount
+  /** basePrice + envFees + laborCost − discount. Dump fee excluded. */
+  subtotal: number;
   tax: number;
   total: number;
 };
@@ -297,9 +305,15 @@ export function calculateJunkEstimate(input: JunkEstimateInput): JunkEstimateRes
     }
 
     const weightLbs = estimateWeight(fraction, input.truckFullLoads);
+    // Dump fee is operational — Kanai's cost, never charged to the
+    // customer. Computed here so the breakdown can show it to
+    // dispatch for margin tracking, but explicitly EXCLUDED from
+    // subtotal/tax/total. (Per business rule: estimated dump cost
+    // is meaningless at quote time anyway — the real number comes
+    // off the receipt at the dump after the job's done.)
     const dumpFee = calculateDumpFee(input.dumpLocation, Number(input.overrideWeight) || weightLbs);
     const discount = Number(input.discount) || 0;
-    const subtotal = Math.max(0, basePrice + envFees + laborCost + dumpFee - discount);
+    const subtotal = Math.max(0, basePrice + envFees + laborCost - discount);
     const tax = Math.round(subtotal * HI_TAX_RATE * 100) / 100;
     const total = Math.round((subtotal + tax) * 100) / 100;
 

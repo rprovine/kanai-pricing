@@ -142,9 +142,17 @@ export type JunkEstimateResult = {
     envFees: number;
     envBreakdown: Record<string, number>;
     laborCost: number;
+    /**
+     * Estimated operational dump cost. NEVER charged to the customer
+     * and NEVER rolled into subtotal/tax/total. Returned for internal
+     * accounting / margin tracking only. The actual dump cost is
+     * captured per-receipt at job completion and isn't known at
+     * quote time.
+     */
     dumpFee: number;
     weightLbs: number;
     discount: number;
+    /** basePrice + envFees + laborCost − discount. Dump fee excluded. */
     subtotal: number;
     tax: number;
     total: number;
