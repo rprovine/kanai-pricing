@@ -66,7 +66,7 @@ export declare const OTHER_RATES: {
     readonly bedBugs: 600;
     readonly carTowing: 200;
     readonly constructionDebris: 100;
-    readonly golfCart: 250;
+    readonly golfCart: 500;
     readonly greenWaste: 100;
     readonly haulingPerHour: 100;
     readonly hotTub: 500;
@@ -146,6 +146,8 @@ export type JunkEstimateInput = {
     dirtbikeCount?: number | string;
     motorcycleCount?: number | string;
     carTruckCount?: number | string;
+    /** Golf cart count — flat $500/cart per OTHER_RATES.golfCart. */
+    golfCartCount?: number | string;
     fluorescentCount?: number | string;
     wetPaint1galCount?: number | string;
     wetPaint5galCount?: number | string;

@@ -96,7 +96,7 @@ exports.OTHER_RATES = {
     bedBugs: 600.00, // starting (job-specific quote required)
     carTowing: 200.00, // starting
     constructionDebris: 100.00, // additional
-    golfCart: 250.00, // starting (or larger battery)
+    golfCart: 500.00, // per cart — reflects haul + recycle costs (Reno 2026-05-25)
     greenWaste: 100.00, // additional per load
     haulingPerHour: 100.00, // per person per hour, 3-hour minimum
     hotTub: 500.00, // starting
@@ -271,6 +271,7 @@ function calculateJunkEstimate(input) {
             dirtbikes: (Number(input.dirtbikeCount) || 0) * exports.ENV_FEES.dirtbike,
             motorcycles: (Number(input.motorcycleCount) || 0) * exports.ENV_FEES.motorcycle,
             carTruck: (Number(input.carTruckCount) || 0) * exports.ENV_FEES.carTruck,
+            golfCart: (Number(input.golfCartCount) || 0) * exports.OTHER_RATES.golfCart,
             fluorescent: (Number(input.fluorescentCount) || 0) * exports.ENV_FEES.fluorescentLight,
             wetPaint1gal: (Number(input.wetPaint1galCount) || 0) * exports.ENV_FEES.wetPaint1gal,
             wetPaint5gal: (Number(input.wetPaint5galCount) || 0) * exports.ENV_FEES.wetPaint5gal,

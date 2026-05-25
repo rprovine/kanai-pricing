@@ -1,6 +1,6 @@
 {
   "name": "@kanai/pricing",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Shared pricing constants and calculators for the Kanai ecosystem (junk removal + dumpster rental). Single source of truth consumed by kanai-dispatch, kanai-estimator-tool, kanai-website, and the public booking forms.",
   "license": "UNLICENSED",
   "private": true,
