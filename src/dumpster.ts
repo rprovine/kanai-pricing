@@ -74,9 +74,18 @@ export const PRICE_BY_AGREEMENT: Record<AgreementType, Record<string, { short: n
 // agreement yet. Concrete and dirt are heavier than household debris;
 // roofing waste needs special routing. Anything else falls back to
 // the construction 7yd base rate.
+// One material per 7yd bin — aggregate never mixes (the dump site sorts +
+// charges each type separately). Each heavy material is priced individually
+// so the public booking flow quotes a per-material 7yd; renting more than one
+// material means more than one 7yd bin.
 export const SEVEN_YD_BY_MATERIAL: Record<string, number> = {
   concrete: 450,
+  asphalt: 450,
   dirt: 450,
+  rock: 450,
+  sand: 450,
+  tile: 450,
+  brick: 450,
   roofing: 500,
 };
 export const SEVEN_YD_DEFAULT_PRICE = 400;
