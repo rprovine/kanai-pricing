@@ -103,6 +103,18 @@ export declare function estimateLaborHours(truckFraction: string | null | undefi
  * Returns dollars, rounded to the cent.
  */
 export declare function calculateLaborCost(estimatedHours: number | string | null | undefined, crewSize?: number | string | null | undefined): number;
+/** Minimum billable hours on a hauling / labor-only job. */
+export declare const HAULING_MIN_HOURS = 3;
+/**
+ * Labor cost for a pure hauling / labor-only job: every crew member is
+ * billed for every hour at LABOR_RATE, with a HAULING_MIN_HOURS floor.
+ * No included-hours or included-crew giveaway (there's no truck base to
+ * bundle them into). Returns dollars, rounded to the cent.
+ *
+ *   3 crew × 3 hrs → 3 × 3 × $100 = $900
+ *   2 crew × 1 hr  → billed at the 3-hr minimum → 2 × 3 × $100 = $600
+ */
+export declare function calculateHaulingCost(estimatedHours: number | string | null | undefined, crewSize?: number | string | null | undefined, minHours?: number): number;
 /** Decimal form, for multiplication (e.g. subtotal * HI_TAX_RATE). */
 export declare const HI_TAX_RATE = 0.04712;
 /** Percentage form, for display (e.g. "Tax (4.712%)"). */
@@ -157,6 +169,13 @@ export type JunkEstimateInput = {
     carpetDemoSqft?: number | string;
     crewSize?: number | string;
     estimatedHours?: number | string;
+    /**
+     * Hauling / labor-only job. Zeroes the truck-volume base and bills
+     * every crew member for every hour at LABOR_RATE (3-hr minimum) with
+     * no included-hours giveaway. Use for pure-labor hauls with an
+     * "Empty" truck fraction.
+     */
+    haulingOnly?: boolean;
     /**
      * Optional. When set AND `estimatedHours` is not, hours are auto-
      * estimated via `estimateLaborHours(truckFraction, truckFullLoads,

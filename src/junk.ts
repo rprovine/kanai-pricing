@@ -201,6 +201,43 @@ export function calculateLaborCost(
   return Math.round((extraHoursCost + extraCrewCost) * 100) / 100;
 }
 
+// ─── Hauling / labor-only jobs ──────────────────────────────────────
+// Some jobs are pure labor — a crew hauls/moves material with NO truck
+// volume to price against (truck fraction "Empty"). The truckload labor
+// model above gives away the first 2 crew × 2 hours as "included in the
+// truck price," which is correct when there IS a truck base price to
+// bundle them into — but on a labor-only haul that base is $0, so those
+// crew-hours get discounted to nothing and the job under-bills (Dena
+// J403, 2026-07-06: 3 crew × 3 hrs read $700 instead of $900, and the
+// lead had to hand-add a $200 line every time). Hauling bills every
+// person for every hour at the flat rate with a 3-hour minimum — no
+// "included" giveaway. This is the OTHER_RATES.haulingPerHour rule made
+// a first-class calculator.
+
+/** Minimum billable hours on a hauling / labor-only job. */
+export const HAULING_MIN_HOURS = 3;
+
+/**
+ * Labor cost for a pure hauling / labor-only job: every crew member is
+ * billed for every hour at LABOR_RATE, with a HAULING_MIN_HOURS floor.
+ * No included-hours or included-crew giveaway (there's no truck base to
+ * bundle them into). Returns dollars, rounded to the cent.
+ *
+ *   3 crew × 3 hrs → 3 × 3 × $100 = $900
+ *   2 crew × 1 hr  → billed at the 3-hr minimum → 2 × 3 × $100 = $600
+ */
+export function calculateHaulingCost(
+  estimatedHours: number | string | null | undefined,
+  crewSize: number | string | null | undefined = INCLUDED_CREW,
+  minHours: number = HAULING_MIN_HOURS,
+): number {
+  const hours = Number(estimatedHours) || 0;
+  const crew = Number(crewSize) || INCLUDED_CREW;
+  if (hours <= 0 || crew <= 0) return 0;
+  const billedHours = Math.max(hours, minHours || 0);
+  return Math.round(billedHours * crew * LABOR_RATE * 100) / 100;
+}
+
 // ─── Hawaii tax ─────────────────────────────────────────────────────
 /** Decimal form, for multiplication (e.g. subtotal * HI_TAX_RATE). */
 export const HI_TAX_RATE = 0.04712;
@@ -292,6 +329,13 @@ export type JunkEstimateInput = {
   // Labor + crew
   crewSize?: number | string;
   estimatedHours?: number | string;
+  /**
+   * Hauling / labor-only job. Zeroes the truck-volume base and bills
+   * every crew member for every hour at LABOR_RATE (3-hr minimum) with
+   * no included-hours giveaway. Use for pure-labor hauls with an
+   * "Empty" truck fraction.
+   */
+  haulingOnly?: boolean;
   /**
    * Optional. When set AND `estimatedHours` is not, hours are auto-
    * estimated via `estimateLaborHours(truckFraction, truckFullLoads,
@@ -397,7 +441,13 @@ export function calculateJunkEstimate(input: JunkEstimateInput): JunkEstimateRes
       : (input.difficulty != null
           ? estimateLaborHours(input.truckFraction, input.truckFullLoads, input.difficulty as Difficulty)
           : 0);
-    const laborCost = calculateLaborCost(estimatedHours, crewSize);
+    // Hauling / labor-only mode: no truck-volume base, every crew member
+    // billed for every hour (3-hr minimum) with no included-hours giveaway.
+    const haulingOnly = input.haulingOnly === true;
+    const laborCost = haulingOnly
+      ? calculateHaulingCost(estimatedHours, crewSize)
+      : calculateLaborCost(estimatedHours, crewSize);
+    const effectiveBasePrice = haulingOnly ? 0 : basePrice;
 
     const weightLbs = estimateWeight(fraction, input.truckFullLoads);
     // Dump fee is operational — Kanai's cost, never charged to the
@@ -408,12 +458,12 @@ export function calculateJunkEstimate(input: JunkEstimateInput): JunkEstimateRes
     // off the receipt at the dump after the job's done.)
     const dumpFee = calculateDumpFee(input.dumpLocation, Number(input.overrideWeight) || weightLbs);
     const discount = Number(input.discount) || 0;
-    const subtotal = Math.max(0, basePrice + envFees + laborCost - discount);
+    const subtotal = Math.max(0, effectiveBasePrice + envFees + laborCost - discount);
     const tax = Math.round(subtotal * HI_TAX_RATE * 100) / 100;
     const total = Math.round((subtotal + tax) * 100) / 100;
 
     return {
-      basePrice, truckPrice, dumpsterPrice,
+      basePrice: effectiveBasePrice, truckPrice, dumpsterPrice,
       envFees, envBreakdown,
       laborCost,
       dumpFee, weightLbs,
