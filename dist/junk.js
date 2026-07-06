@@ -177,13 +177,15 @@ function estimateLaborHours(truckFraction, truckFullLoads = 0, difficulty = "eas
 function calculateLaborCost(estimatedHours, crewSize = exports.INCLUDED_CREW) {
     const hours = Number(estimatedHours) || 0;
     const crew = Number(crewSize) || exports.INCLUDED_CREW;
-    if (hours <= 0)
+    if (hours <= 0 || crew <= 0)
         return 0;
-    const extraHours = Math.max(0, hours - exports.INCLUDED_HOURS);
-    const extraCrew = Math.max(0, crew - exports.INCLUDED_CREW);
-    const extraHoursCost = extraHours * Math.min(crew, exports.INCLUDED_CREW) * exports.LABOR_RATE;
-    const extraCrewCost = hours * extraCrew * exports.LABOR_RATE;
-    return Math.round((extraHoursCost + extraCrewCost) * 100) / 100;
+    // Initial allowance: up to INCLUDED_CREW people for INCLUDED_HOURS
+    // hours, baked into the truck price. EVERY person-hour beyond that
+    // allowance bills at LABOR_RATE — $100/hr per person, all crew, no
+    // per-hour cap (Reno 2026-07-06: all additional labor is $100/hr/person).
+    const includedPersonHours = Math.min(crew, exports.INCLUDED_CREW) * exports.INCLUDED_HOURS;
+    const billablePersonHours = Math.max(0, crew * hours - includedPersonHours);
+    return Math.round(billablePersonHours * exports.LABOR_RATE * 100) / 100;
 }
 // ─── Hauling / labor-only jobs ──────────────────────────────────────
 // Some jobs are pure labor — a crew hauls/moves material with NO truck
