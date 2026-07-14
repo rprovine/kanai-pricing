@@ -102,7 +102,7 @@ exports.OTHER_RATES = {
     hotTub: 500.00, // starting
     paintedConcrete: 400.00, // additional
     pianoRemoval: 250.00, // starting (piano size-dependent)
-    fridgeCleanOut: 200.00, // when refrigerator has spoiled food
+    fridgeCleanOut: 400.00, // flat fee to empty spoiled food ourselves (separate from + on top of the $52.50 freon disposal fee); Reno 2026-07-14
     shedDemo: 400.00, // starting (size-dependent)
 };
 // ─── Dump locations & per-ton rates ─────────────────────────────────

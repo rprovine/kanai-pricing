@@ -72,7 +72,7 @@ export declare const OTHER_RATES: {
     readonly hotTub: 500;
     readonly paintedConcrete: 400;
     readonly pianoRemoval: 250;
-    readonly fridgeCleanOut: 200;
+    readonly fridgeCleanOut: 400;
     readonly shedDemo: 400;
 };
 export declare const DUMP_LOCATIONS: Record<string, {
