@@ -24,7 +24,7 @@
  * duplicating any math.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.OUT_OF_DISTRICT_SURCHARGE = exports.MIXED_DEBRIS_SURCHARGE = exports.EXTENSION_RATE = exports.ROOFING_DUMP_RATE_PER_TON = exports.OVERAGE_RATE = exports.INCLUDED_TONS = exports.SEVEN_YD_DEFAULT_PRICE = exports.SEVEN_YD_BY_MATERIAL = exports.PRICE_BY_AGREEMENT = void 0;
+exports.OUT_OF_DISTRICT_SURCHARGE = exports.MIXED_DEBRIS_SURCHARGE = exports.EXTENSION_RATE = exports.ROOFING_DUMP_RATE_PER_TON = exports.OVERAGE_RATE = exports.INCLUDED_TONS = exports.PROBUILT_INCLUDED_TONS = exports.SEVEN_YD_DEFAULT_PRICE = exports.SEVEN_YD_BY_MATERIAL = exports.PRICE_BY_AGREEMENT = void 0;
 exports.priceForSevenYdByMaterial = priceForSevenYdByMaterial;
 exports.priceFor = priceFor;
 exports.isRevenueGeneratingType = isRevenueGeneratingType;
@@ -71,6 +71,19 @@ exports.PRICE_BY_AGREEMENT = {
         "20yd": { short: 400, long: 400 },
         "25yd": { short: 400, long: 400 },
         "30yd": { short: 400, long: 400 },
+    },
+    probuilt: {
+        // ProBuilt Roofing — negotiated agreement effective 08/01/26.
+        // ONE flat $990 across every size for a 1-5 day rental, 3 tons included on
+        // each, $180/ton after. Structurally unlike the other flat tiers: roofing
+        // and NAN bill every ton separately and include none, while ProBuilt is a
+        // flat rate WITH an allowance, closer to residential but size-independent.
+        // No 7yd in the agreement, so 7yd falls through to construction like the
+        // other flat tiers.
+        "15yd": { short: 990, long: 990 },
+        "20yd": { short: 990, long: 990 },
+        "25yd": { short: 990, long: 990 },
+        "30yd": { short: 990, long: 990 },
     },
 };
 // ─── 7yd material-specific pricing ─────────────────────────────────
@@ -141,6 +154,8 @@ function isRevenueGeneratingType(taskType) {
 // ─── Included tons by size ─────────────────────────────────────────
 // Matches the agreement pricing tables and what's printed on the
 // customer agreements.
+/** ProBuilt's allowance is a flat 3 tons on 15/20/25/30 — not size-scaled. */
+exports.PROBUILT_INCLUDED_TONS = 3;
 exports.INCLUDED_TONS = {
     "7yd": 4,
     "15yd": 2,
@@ -160,6 +175,14 @@ function includedTonsFor(size, customerType, materialType, agreementType, overri
     const tons = (k) => overrides?.included_tons?.[k] ?? exports.INCLUDED_TONS[k] ?? 0;
     if (size === "7yd")
         return tons("7yd"); // construction-fallback bypass
+    // ProBuilt: a flat 3 tons on every size, and it must be decided BEFORE the
+    // material check below. They are a roofing company hauling roofing debris, so
+    // that branch would return Infinity and silently forgive every ton past the
+    // allowance — the $180/ton their agreement charges would never bill. Their
+    // table is also size-independent, so INCLUDED_TONS (15yd 2, 30yd 5) is wrong
+    // for them in both directions.
+    if (agreementType === "probuilt")
+        return exports.PROBUILT_INCLUDED_TONS;
     if (materialType === "roofing")
         return Number.POSITIVE_INFINITY;
     if (agreementType === "roofing" || agreementType === "nan")
@@ -221,6 +244,11 @@ function calculateOverage(size, tonsDumped, customerType, materialType, agreemen
  *   - roofing → ROOFING_DUMP_RATE_PER_TON × tons on every ton dumped
  *   - nan     → actual facility cost passes through with no markup;
  *               caller must supply `dumpCost`
+ *   - probuilt → 0, deliberately. Their $180/ton starts only AFTER the 3-ton
+ *               allowance, so it is an OVERAGE (calculateOverage), not a
+ *               per-ton pass-through. Adding them beside roofing here would
+ *               bill every ton twice — once inside the flat $990 and again
+ *               as a dump fee.
  *
  * This is a DUMPSTER-side calculator. It runs at task completion and
  * the result IS customer-billable (unlike the junk-removal dump fee,

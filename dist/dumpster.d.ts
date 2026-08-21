@@ -22,7 +22,7 @@
  * persist owner-configurable rates can pass them in without
  * duplicating any math.
  */
-export type AgreementType = "residential" | "construction" | "roofing" | "government" | "nan";
+export type AgreementType = "residential" | "construction" | "roofing" | "government" | "nan" | "probuilt";
 export declare const PRICE_BY_AGREEMENT: Record<AgreementType, Record<string, {
     short: number;
     long: number;
@@ -56,6 +56,8 @@ export declare function priceFor(size: string | null | undefined, duration: stri
     long: number;
 }>> | null): number | null;
 export declare function isRevenueGeneratingType(taskType: string | null | undefined): boolean;
+/** ProBuilt's allowance is a flat 3 tons on 15/20/25/30 — not size-scaled. */
+export declare const PROBUILT_INCLUDED_TONS = 3;
 export declare const INCLUDED_TONS: Record<string, number>;
 /**
  * Construction agreements include extra tonnage on 15yd. Roofing
@@ -123,6 +125,11 @@ export declare function calculateOverage(size: string, tonsDumped: number, custo
  *   - roofing → ROOFING_DUMP_RATE_PER_TON × tons on every ton dumped
  *   - nan     → actual facility cost passes through with no markup;
  *               caller must supply `dumpCost`
+ *   - probuilt → 0, deliberately. Their $180/ton starts only AFTER the 3-ton
+ *               allowance, so it is an OVERAGE (calculateOverage), not a
+ *               per-ton pass-through. Adding them beside roofing here would
+ *               bill every ton twice — once inside the flat $990 and again
+ *               as a dump fee.
  *
  * This is a DUMPSTER-side calculator. It runs at task completion and
  * the result IS customer-billable (unlike the junk-removal dump fee,
