@@ -161,7 +161,21 @@ exports.INCLUDED_TONS = {
     "15yd": 2,
     "20yd": 3,
     "25yd": 3,
-    "30yd": 5,
+    // 30yd dropped 5 -> 3 (Kana'i 2026-08-22). A 30 was the only size whose
+    // allowance rose with volume, and a 30 filled with anything dense blew past
+    // 5 tons routinely — the extra two tons were being given away on exactly the
+    // loads that cost the most to dump. Overage ($180/ton) now starts at 3 like
+    // the 20 and 25.
+    //
+    // Everything that bills or quotes tonnage reads includedTonsFor(), so the
+    // overage auto-charge at completion, the AI's pricing answers and the
+    // customer's overage SMS all follow from this line. Only the printed
+    // agreement schedules state it in prose and had to be edited by hand.
+    //
+    // Not retroactive: overage is computed at completion and frozen into
+    // dispatch_tasks.overage_fee, so rentals already closed keep what they were
+    // billed. It applies to every 30yd completed from here on.
+    "30yd": 3,
 };
 /**
  * Construction agreements include extra tonnage on 15yd. Roofing
