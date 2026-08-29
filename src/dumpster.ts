@@ -72,8 +72,13 @@ export const PRICE_BY_AGREEMENT: Record<AgreementType, Record<string, { short: n
     // each, $180/ton after. Structurally unlike the other flat tiers: roofing
     // and NAN bill every ton separately and include none, while ProBuilt is a
     // flat rate WITH an allowance, closer to residential but size-independent.
-    // No 7yd in the agreement, so 7yd falls through to construction like the
-    // other flat tiers.
+    // "Any size" includes the 7yd (Reno 2026-08-29). The other flat tiers let
+    // 7yd fall through to construction because their structures genuinely stop
+    // at 15yd; ProBuilt's does not, and the fallthrough was billing a 7yd at
+    // the construction $600/$675 while the New Task dropdown offered $990 —
+    // Tiony Laupapa T1376 went out invoiced at $990 against a schedule that
+    // said $675.
+    "7yd":  { short: 990, long: 990 },
     "15yd": { short: 990, long: 990 },
     "20yd": { short: 990, long: 990 },
     "25yd": { short: 990, long: 990 },
@@ -199,14 +204,19 @@ export function includedTonsFor(
   overrides?: { included_tons?: Record<string, number>; included_tons_construction_15yd?: number },
 ): number {
   const tons = (k: string) => overrides?.included_tons?.[k] ?? INCLUDED_TONS[k] ?? 0;
-  if (size === "7yd") return tons("7yd"); // construction-fallback bypass
-  // ProBuilt: a flat 3 tons on every size, and it must be decided BEFORE the
-  // material check below. They are a roofing company hauling roofing debris, so
-  // that branch would return Infinity and silently forgive every ton past the
-  // allowance — the $180/ton their agreement charges would never bill. Their
-  // table is also size-independent, so INCLUDED_TONS (15yd 2, 30yd 5) is wrong
-  // for them in both directions.
+  // ProBuilt is decided FIRST, ahead of both branches below.
+  //
+  // Ahead of the material check because they are a roofing company hauling
+  // roofing debris, and that branch returns Infinity — every ton past the
+  // allowance silently forgiven, the $180/ton their agreement charges never
+  // billed.
+  //
+  // Ahead of the 7yd bypass because their allowance is size-independent: a 7yd
+  // ProBuilt bin was taking the generic 7yd allowance of 4 tons against an
+  // agreement that grants 3 on every size, the same way its price was taking
+  // the construction 7yd rate against a flat $990.
   if (agreementType === "probuilt") return PROBUILT_INCLUDED_TONS;
+  if (size === "7yd") return tons("7yd"); // construction-fallback bypass
   if (materialType === "roofing") return Number.POSITIVE_INFINITY;
   if (agreementType === "roofing" || agreementType === "nan") return Number.POSITIVE_INFINITY;
   if (customerType === "commercial" || customerType === "construction") {
