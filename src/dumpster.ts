@@ -26,7 +26,7 @@
 import { HI_TAX_RATE } from "./junk";
 
 // ─── Agreement types ───────────────────────────────────────────────
-export type AgreementType = "residential" | "construction" | "roofing" | "government" | "nan" | "probuilt";
+export type AgreementType = "residential" | "construction" | "roofing" | "government" | "nan" | "probuilt" | "davey";
 
 // ─── Rental price tables (base before tax) ─────────────────────────
 export const PRICE_BY_AGREEMENT: Record<AgreementType, Record<string, { short: number; long: number }>> = {
@@ -65,6 +65,29 @@ export const PRICE_BY_AGREEMENT: Record<AgreementType, Record<string, { short: n
     "20yd": { short: 400, long: 400 },
     "25yd": { short: 400, long: 400 },
     "30yd": { short: 400, long: 400 },
+  },
+  // Davey's — Jovoni Carbullido's tree service, agreement effective 08/20/26.
+  // Covers ONE thing: the standing Friday 15yd green-waste bin, $950 for a 1-5
+  // day rental (the agreement caps rentals at 5 days, so there is no long tier
+  // — day 6 onward is the $50/day extension like everyone else). 2 tons
+  // included and $180/ton after are already the house defaults, so the rate is
+  // the only thing this agreement actually changes.
+  //
+  // The other sizes mirror RESIDENTIAL on purpose, and this is the important
+  // line. Davey's covers the Friday 15s and nothing else, so picking it on a
+  // 30yd must not silently reprice work the agreement never mentioned — and
+  // Jovoni runs a lot of 30yd work billed residential today. Left undefined,
+  // priceFor() falls through to CONSTRUCTION, which would quietly move his
+  // 30yd from $950 to $1,000. That fallthrough is exactly how ProBuilt's 7yd
+  // went out at the construction $675 against a dropdown quoting $990
+  // (T1376). Mirroring residential makes selecting Davey's on a non-Friday
+  // bin a no-op rather than a surprise.
+  davey: {
+    "15yd": { short: 950, long: 950 },   // the agreement
+    // ── everything below is residential's row, not a negotiated rate ──
+    "20yd": { short: 850, long: 900 },
+    "25yd": { short: 850, long: 900 },
+    "30yd": { short: 950, long: 1000 },
   },
   probuilt: {
     // ProBuilt Roofing — negotiated agreement effective 08/01/26.
@@ -216,6 +239,18 @@ export function includedTonsFor(
   // agreement that grants 3 on every size, the same way its price was taking
   // the construction 7yd rate against a flat $990.
   if (agreementType === "probuilt") return PROBUILT_INCLUDED_TONS;
+  // Davey's 15yd is 2 tons by contract. Pinned here, ahead of the branches
+  // below, for the same reason ProBuilt is: both of them would otherwise be
+  // decided by something other than the agreement. The material check returns
+  // Infinity and would forgive every ton; the commercial/construction branch
+  // would hand a 15yd 3 tons instead of 2. Jovoni hauls green waste on a
+  // `standard` customer_type today, so neither fires — but the agreement's
+  // number shouldn't depend on two unrelated fields staying put.
+  //
+  // Scoped to the 15yd deliberately. Davey's other sizes mirror residential
+  // (see PRICE_BY_AGREEMENT) and must keep residential's allowances too — a
+  // blanket 2 would quietly cut a Davey's 30yd from 3 tons to 2.
+  if (agreementType === "davey" && size === "15yd") return tons("15yd");
   if (size === "7yd") return tons("7yd"); // construction-fallback bypass
   if (materialType === "roofing") return Number.POSITIVE_INFINITY;
   if (agreementType === "roofing" || agreementType === "nan") return Number.POSITIVE_INFINITY;
@@ -306,6 +341,8 @@ export function calculateOverage(
  *               per-ton pass-through. Adding them beside roofing here would
  *               bill every ton twice — once inside the flat $990 and again
  *               as a dump fee.
+ *   - davey   → 0, for the identical reason: $180/ton starts after the 2-ton
+ *               allowance on the Friday 15yd, so calculateOverage owns it.
  *
  * This is a DUMPSTER-side calculator. It runs at task completion and
  * the result IS customer-billable (unlike the junk-removal dump fee,

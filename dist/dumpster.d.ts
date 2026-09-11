@@ -22,7 +22,7 @@
  * persist owner-configurable rates can pass them in without
  * duplicating any math.
  */
-export type AgreementType = "residential" | "construction" | "roofing" | "government" | "nan" | "probuilt";
+export type AgreementType = "residential" | "construction" | "roofing" | "government" | "nan" | "probuilt" | "davey";
 export declare const PRICE_BY_AGREEMENT: Record<AgreementType, Record<string, {
     short: number;
     long: number;
@@ -130,6 +130,8 @@ export declare function calculateOverage(size: string, tonsDumped: number, custo
  *               per-ton pass-through. Adding them beside roofing here would
  *               bill every ton twice — once inside the flat $990 and again
  *               as a dump fee.
+ *   - davey   → 0, for the identical reason: $180/ton starts after the 2-ton
+ *               allowance on the Friday 15yd, so calculateOverage owns it.
  *
  * This is a DUMPSTER-side calculator. It runs at task completion and
  * the result IS customer-billable (unlike the junk-removal dump fee,
