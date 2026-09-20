@@ -59,6 +59,8 @@ export declare const ENV_FEES: {
     readonly wetPaint5gal: 75;
     readonly waterHeater: 42;
     readonly waterHeaterLarge: 90;
+    readonly propaneTank: 500;
+    readonly fireExtinguisher: 100;
 };
 export declare const OTHER_RATES: {
     readonly carpetDemo: 3;
@@ -165,6 +167,9 @@ export type JunkEstimateInput = {
     wetPaint5galCount?: number | string;
     waterHeaterCount?: number | string;
     waterHeaterLargeCount?: number | string;
+    /** Propane tanks — $500/tank hazmat handling. See ENV_FEES.propaneTank. */
+    propaneTankCount?: number | string;
+    fireExtinguisherCount?: number | string;
     greenWasteCount?: number | string;
     carpetDemoSqft?: number | string;
     crewSize?: number | string;

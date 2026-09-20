@@ -85,6 +85,13 @@ export const ENV_FEES = {
   wetPaint5gal: 75.00,
   waterHeater: 42.00,
   waterHeaterLarge: 90.00,// industrial, starting
+  // Hazmat, junk-side only. The DUMPSTER surcharge catalog bills a propane
+  // tank at $150 — a bin drop-off where the tank is one item among a load the
+  // customer filled themselves. Junk crews handle, segregate and transport the
+  // tanks by hand to a hazmat site, and that bills at $500 (Reno 2026-09-19).
+  // The two numbers are deliberately different; don't reconcile them.
+  propaneTank: 500.00,
+  fireExtinguisher: 100.00, // same as the dumpster catalog
 } as const;
 
 export const OTHER_RATES = {
@@ -326,6 +333,9 @@ export type JunkEstimateInput = {
   wetPaint5galCount?: number | string;
   waterHeaterCount?: number | string;
   waterHeaterLargeCount?: number | string;
+  /** Propane tanks — $500/tank hazmat handling. See ENV_FEES.propaneTank. */
+  propaneTankCount?: number | string;
+  fireExtinguisherCount?: number | string;
   greenWasteCount?: number | string;
   carpetDemoSqft?: number | string;
   // Labor + crew
@@ -422,6 +432,8 @@ export function calculateJunkEstimate(input: JunkEstimateInput): JunkEstimateRes
       wetPaint5gal: (Number(input.wetPaint5galCount) || 0) * ENV_FEES.wetPaint5gal,
       waterHeater: (Number(input.waterHeaterCount) || 0) * ENV_FEES.waterHeater,
       waterHeaterLarge: (Number(input.waterHeaterLargeCount) || 0) * ENV_FEES.waterHeaterLarge,
+      propaneTank: (Number(input.propaneTankCount) || 0) * ENV_FEES.propaneTank,
+      fireExtinguisher: (Number(input.fireExtinguisherCount) || 0) * ENV_FEES.fireExtinguisher,
       greenWaste: (Number(input.greenWasteCount) || 0) * OTHER_RATES.greenWaste,
       carpetDemo: (Number(input.carpetDemoSqft) || 0) * OTHER_RATES.carpetDemo,
     };

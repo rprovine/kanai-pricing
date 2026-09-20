@@ -90,6 +90,13 @@ exports.ENV_FEES = {
     wetPaint5gal: 75.00,
     waterHeater: 42.00,
     waterHeaterLarge: 90.00, // industrial, starting
+    // Hazmat, junk-side only. The DUMPSTER surcharge catalog bills a propane
+    // tank at $150 — a bin drop-off where the tank is one item among a load the
+    // customer filled themselves. Junk crews handle, segregate and transport the
+    // tanks by hand to a hazmat site, and that bills at $500 (Reno 2026-09-19).
+    // The two numbers are deliberately different; don't reconcile them.
+    propaneTank: 500.00,
+    fireExtinguisher: 100.00, // same as the dumpster catalog
 };
 exports.OTHER_RATES = {
     carpetDemo: 3.00, // per sq ft
@@ -311,6 +318,8 @@ function calculateJunkEstimate(input) {
             wetPaint5gal: (Number(input.wetPaint5galCount) || 0) * exports.ENV_FEES.wetPaint5gal,
             waterHeater: (Number(input.waterHeaterCount) || 0) * exports.ENV_FEES.waterHeater,
             waterHeaterLarge: (Number(input.waterHeaterLargeCount) || 0) * exports.ENV_FEES.waterHeaterLarge,
+            propaneTank: (Number(input.propaneTankCount) || 0) * exports.ENV_FEES.propaneTank,
+            fireExtinguisher: (Number(input.fireExtinguisherCount) || 0) * exports.ENV_FEES.fireExtinguisher,
             greenWaste: (Number(input.greenWasteCount) || 0) * exports.OTHER_RATES.greenWaste,
             carpetDemo: (Number(input.carpetDemoSqft) || 0) * exports.OTHER_RATES.carpetDemo,
         };
