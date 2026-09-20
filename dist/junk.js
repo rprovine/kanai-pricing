@@ -81,7 +81,10 @@ exports.ENV_FEES = {
     tireNoRim: 31.50,
     tireSemiTractor: 150.00,
     bike: 10.50,
-    battery: 20.00, // car battery (golf-cart+ starts at $40 — handled in OTHER_RATES)
+    // Car battery. $20 through v0.11.0; Brandon was quoting $25 off the field
+    // sheet and Reno confirmed that as the rate (2026-09-19). Raising it here
+    // moves it for EVERY junk quote — Holo, Kilo, and the public site.
+    battery: 25.00, // (golf-cart+ starts at $40 — handled in OTHER_RATES)
     dirtbike: 150.00, // starting
     motorcycle: 250.00, // moped / motorcycle, starting
     carTruck: 250.00, // car/truck removal starting

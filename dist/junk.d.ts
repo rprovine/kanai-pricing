@@ -50,7 +50,7 @@ export declare const ENV_FEES: {
     readonly tireNoRim: 31.5;
     readonly tireSemiTractor: 150;
     readonly bike: 10.5;
-    readonly battery: 20;
+    readonly battery: 25;
     readonly dirtbike: 150;
     readonly motorcycle: 250;
     readonly carTruck: 250;
