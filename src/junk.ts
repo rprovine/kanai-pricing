@@ -91,9 +91,11 @@ export const ENV_FEES = {
   // Hazmat, junk-side only. The DUMPSTER surcharge catalog bills a propane
   // tank at $150 — a bin drop-off where the tank is one item among a load the
   // customer filled themselves. Junk crews handle, segregate and transport the
-  // tanks by hand to a hazmat site, and that bills at $500 (Reno 2026-09-19).
-  // The two numbers are deliberately different; don't reconcile them.
-  propaneTank: 500.00,
+  // tanks by hand to a hazmat site, and that bills more. Landed at $500 on
+  // 2026-09-19 and corrected to $300 the next day, once Reno priced a real
+  // six-tank pile (Brandan Lee, Pearl City) rather than a hypothetical one.
+  // Still deliberately NOT the dumpster's $150; don't reconcile the two.
+  propaneTank: 300.00,
   fireExtinguisher: 100.00, // same as the dumpster catalog
 } as const;
 
@@ -336,7 +338,7 @@ export type JunkEstimateInput = {
   wetPaint5galCount?: number | string;
   waterHeaterCount?: number | string;
   waterHeaterLargeCount?: number | string;
-  /** Propane tanks — $500/tank hazmat handling. See ENV_FEES.propaneTank. */
+  /** Propane tanks — $300/tank hazmat handling. See ENV_FEES.propaneTank. */
   propaneTankCount?: number | string;
   fireExtinguisherCount?: number | string;
   greenWasteCount?: number | string;
