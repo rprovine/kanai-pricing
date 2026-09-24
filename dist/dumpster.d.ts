@@ -22,7 +22,8 @@
  * persist owner-configurable rates can pass them in without
  * duplicating any math.
  */
-export type AgreementType = "residential" | "construction" | "roofing" | "government" | "nan" | "probuilt" | "davey";
+export type AgreementType = "residential" | "construction" | "roofing" | "government" | "nan" | "probuilt" | "davey" | "surge";
+export declare const SURGE_MULTIPLIER = 1.5;
 export declare const PRICE_BY_AGREEMENT: Record<AgreementType, Record<string, {
     short: number;
     long: number;
@@ -132,6 +133,8 @@ export declare function calculateOverage(size: string, tonsDumped: number, custo
  *               as a dump fee.
  *   - davey   → 0, for the identical reason: $180/ton starts after the 2-ton
  *               allowance on the Friday 15yd, so calculateOverage owns it.
+ *   - surge   → 0, like residential: surge only raises the rental price, and
+ *               tonnage past the allowance is overage at the normal rate.
  *
  * This is a DUMPSTER-side calculator. It runs at task completion and
  * the result IS customer-billable (unlike the junk-removal dump fee,

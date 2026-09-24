@@ -26,7 +26,20 @@
 import { HI_TAX_RATE } from "./junk";
 
 // ─── Agreement types ───────────────────────────────────────────────
-export type AgreementType = "residential" | "construction" | "roofing" | "government" | "nan" | "probuilt" | "davey";
+export type AgreementType = "residential" | "construction" | "roofing" | "government" | "nan" | "probuilt" | "davey" | "surge";
+
+// ─── Surge (peak-period residential) ───────────────────────────────
+// Surge is residential pricing during peak periods: every bin size's RENTAL
+// price is residential's x SURGE_MULTIPLIER. Nothing else moves — included
+// tons, the overage $/ton, extensions and surcharges are residential's, so
+// every calculator below treats "surge" exactly like "residential" except
+// priceFor(). WHEN a period is peak is not this package's business: the
+// consumer (kanai-dispatch) owns the peak-date windows and decides whether a
+// residential booking is priced as surge.
+export const SURGE_MULTIPLIER = 1.5;
+
+const surgeOf = (n: number) => Math.round(n * SURGE_MULTIPLIER * 100) / 100;
+const surgeTier = (t: { short: number; long: number }) => ({ short: surgeOf(t.short), long: surgeOf(t.long) });
 
 // ─── Rental price tables (base before tax) ─────────────────────────
 export const PRICE_BY_AGREEMENT: Record<AgreementType, Record<string, { short: number; long: number }>> = {
@@ -107,7 +120,18 @@ export const PRICE_BY_AGREEMENT: Record<AgreementType, Record<string, { short: n
     "25yd": { short: 990, long: 990 },
     "30yd": { short: 990, long: 990 },
   },
+  // Surge — filled in just below from residential, so the two can never drift.
+  surge: {},
 };
+
+// Surge rows are residential's rows x SURGE_MULTIPLIER. The 7yd is included:
+// residential has no 7yd row, so a residential 7yd bills at construction's
+// $600/$675, and at peak that becomes $900/$1,012.50 — "every bin size" means
+// the 7yd too. Derived rather than typed out so a residential rate change can
+// never leave surge behind at the old base.
+for (const [size, tier] of Object.entries({ "7yd": PRICE_BY_AGREEMENT.construction["7yd"], ...PRICE_BY_AGREEMENT.residential })) {
+  PRICE_BY_AGREEMENT.surge[size] = surgeTier(tier);
+}
 
 // ─── 7yd material-specific pricing ─────────────────────────────────
 // The public booking flow on kanai-website prices 7yd by material
@@ -165,6 +189,16 @@ export function priceFor(
   overrides?: Record<string, Record<string, { short: number; long: number }>> | null,
 ): number | null {
   if (!size || !duration || !agreement) return null;
+  // Surge follows the OWNER'S residential rates, not just the defaults: if the
+  // office has overridden residential's 20yd to $875, surge's 20yd is
+  // $1,312.50, not $1,275 off a number nobody charges any more. An explicit
+  // surge override still wins, for an owner who wants to set peak rates by hand.
+  if (agreement === "surge" && !overrides?.surge?.[size]) {
+    const base = overrides?.residential?.[size] ?? PRICE_BY_AGREEMENT.residential[size]
+      ?? overrides?.construction?.[size] ?? PRICE_BY_AGREEMENT.construction[size];
+    if (!base) return null;
+    return surgeOf(duration === "long" ? base.long : base.short);
+  }
   const overrideTier = overrides?.[agreement as string]?.[size];
   let tier = overrideTier ?? PRICE_BY_AGREEMENT[agreement as AgreementType]?.[size];
   // Fall back to construction's row when the chosen agreement doesn't
@@ -343,6 +377,8 @@ export function calculateOverage(
  *               as a dump fee.
  *   - davey   → 0, for the identical reason: $180/ton starts after the 2-ton
  *               allowance on the Friday 15yd, so calculateOverage owns it.
+ *   - surge   → 0, like residential: surge only raises the rental price, and
+ *               tonnage past the allowance is overage at the normal rate.
  *
  * This is a DUMPSTER-side calculator. It runs at task completion and
  * the result IS customer-billable (unlike the junk-removal dump fee,
