@@ -26,7 +26,7 @@
 import { HI_TAX_RATE } from "./junk";
 
 // ─── Agreement types ───────────────────────────────────────────────
-export type AgreementType = "residential" | "construction" | "roofing" | "government" | "nan" | "probuilt" | "davey" | "surge";
+export type AgreementType = "residential" | "construction" | "roofing" | "government" | "nan" | "probuilt" | "davey" | "surge" | "roofing_hauler_bin";
 
 // ─── Surge (peak-period residential) ───────────────────────────────
 // Surge is residential pricing during peak periods: every bin size's RENTAL
@@ -122,6 +122,19 @@ export const PRICE_BY_AGREEMENT: Record<AgreementType, Record<string, { short: n
   },
   // Surge — filled in just below from residential, so the two can never drift.
   surge: {},
+  roofing_hauler_bin: {
+    // A roofer's bin when ours are all out: we rent a bin from another hauler
+    // and OUR truck delivers, picks up and dumps it (Reno 2026-11-03). One flat
+    // $1,200 on every size with 3 tons included and the overage rate after, so
+    // it is ProBuilt's shape at a higher flat — the hauler bills us for the
+    // steel. Not a standing contract: the consumer (kanai-dispatch) picks it
+    // per task for a roofing customer, the way it picks surge for a date.
+    "7yd":  { short: 1200, long: 1200 },
+    "15yd": { short: 1200, long: 1200 },
+    "20yd": { short: 1200, long: 1200 },
+    "25yd": { short: 1200, long: 1200 },
+    "30yd": { short: 1200, long: 1200 },
+  },
 };
 
 // Surge rows are residential's rows x SURGE_MULTIPLIER. The 7yd is included:
@@ -222,6 +235,8 @@ export function isRevenueGeneratingType(taskType: string | null | undefined): bo
 // customer agreements.
 /** ProBuilt's allowance is a flat 3 tons on 15/20/25/30 — not size-scaled. */
 export const PROBUILT_INCLUDED_TONS = 3;
+/** Roofing on another hauler's bin (roofing_hauler_bin): a flat 3 tons on every size. */
+export const HAULER_BIN_INCLUDED_TONS = 3;
 
 export const INCLUDED_TONS: Record<string, number> = {
   "7yd": 4,
@@ -273,6 +288,9 @@ export function includedTonsFor(
   // agreement that grants 3 on every size, the same way its price was taking
   // the construction 7yd rate against a flat $990.
   if (agreementType === "probuilt") return PROBUILT_INCLUDED_TONS;
+  // Same reasons, same place: a roofer's load would otherwise hit the roofing
+  // material/agreement branches below and have every ton forgiven.
+  if (agreementType === "roofing_hauler_bin") return HAULER_BIN_INCLUDED_TONS;
   // Davey's 15yd is 2 tons by contract. Pinned here, ahead of the branches
   // below, for the same reason ProBuilt is: both of them would otherwise be
   // decided by something other than the agreement. The material check returns
@@ -379,6 +397,9 @@ export function calculateOverage(
  *               allowance on the Friday 15yd, so calculateOverage owns it.
  *   - surge   → 0, like residential: surge only raises the rental price, and
  *               tonnage past the allowance is overage at the normal rate.
+ *   - roofing_hauler_bin → 0, like probuilt: the $1,200 flat includes 3 tons
+ *               and only tonnage past that bills, as overage. Matching it with
+ *               roofing here would charge $180 on the included tons too.
  *
  * This is a DUMPSTER-side calculator. It runs at task completion and
  * the result IS customer-billable (unlike the junk-removal dump fee,

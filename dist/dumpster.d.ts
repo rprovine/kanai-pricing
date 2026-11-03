@@ -22,7 +22,7 @@
  * persist owner-configurable rates can pass them in without
  * duplicating any math.
  */
-export type AgreementType = "residential" | "construction" | "roofing" | "government" | "nan" | "probuilt" | "davey" | "surge";
+export type AgreementType = "residential" | "construction" | "roofing" | "government" | "nan" | "probuilt" | "davey" | "surge" | "roofing_hauler_bin";
 export declare const SURGE_MULTIPLIER = 1.5;
 export declare const PRICE_BY_AGREEMENT: Record<AgreementType, Record<string, {
     short: number;
@@ -59,6 +59,8 @@ export declare function priceFor(size: string | null | undefined, duration: stri
 export declare function isRevenueGeneratingType(taskType: string | null | undefined): boolean;
 /** ProBuilt's allowance is a flat 3 tons on 15/20/25/30 — not size-scaled. */
 export declare const PROBUILT_INCLUDED_TONS = 3;
+/** Roofing on another hauler's bin (roofing_hauler_bin): a flat 3 tons on every size. */
+export declare const HAULER_BIN_INCLUDED_TONS = 3;
 export declare const INCLUDED_TONS: Record<string, number>;
 /**
  * Construction agreements include extra tonnage on 15yd. Roofing
@@ -135,6 +137,9 @@ export declare function calculateOverage(size: string, tonsDumped: number, custo
  *               allowance on the Friday 15yd, so calculateOverage owns it.
  *   - surge   → 0, like residential: surge only raises the rental price, and
  *               tonnage past the allowance is overage at the normal rate.
+ *   - roofing_hauler_bin → 0, like probuilt: the $1,200 flat includes 3 tons
+ *               and only tonnage past that bills, as overage. Matching it with
+ *               roofing here would charge $180 on the included tons too.
  *
  * This is a DUMPSTER-side calculator. It runs at task completion and
  * the result IS customer-billable (unlike the junk-removal dump fee,
