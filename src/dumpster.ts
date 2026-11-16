@@ -26,7 +26,7 @@
 import { HI_TAX_RATE } from "./junk";
 
 // ─── Agreement types ───────────────────────────────────────────────
-export type AgreementType = "residential" | "construction" | "roofing" | "government" | "nan" | "probuilt" | "davey" | "surge" | "roofing_hauler_bin";
+export type AgreementType = "residential" | "construction" | "roofing" | "government" | "nan" | "probuilt" | "fbc_roofing" | "davey" | "surge" | "roofing_hauler_bin";
 
 // ─── Surge (peak-period residential) ───────────────────────────────
 // Surge is residential pricing during peak periods: every bin size's RENTAL
@@ -114,6 +114,18 @@ export const PRICE_BY_AGREEMENT: Record<AgreementType, Record<string, { short: n
     // the construction $600/$675 while the New Task dropdown offered $990 —
     // Tiony Laupapa T1376 went out invoiced at $990 against a schedule that
     // said $675.
+    "7yd":  { short: 990, long: 990 },
+    "15yd": { short: 990, long: 990 },
+    "20yd": { short: 990, long: 990 },
+    "25yd": { short: 990, long: 990 },
+    "30yd": { short: 990, long: 990 },
+  },
+  // FBC Roofing — the exact ProBuilt agreement under FBC's name (Reno
+  // 2026-11-16: "same agreement and process as Probuilt … just call it FBC
+  // Roofing"). $990 flat every size incl. 7yd, 1-5 days, 3 tons included,
+  // overage after. Its own rows (not a pointer to probuilt's) so a future
+  // change to one contract can't silently move the other.
+  fbc_roofing: {
     "7yd":  { short: 990, long: 990 },
     "15yd": { short: 990, long: 990 },
     "20yd": { short: 990, long: 990 },
@@ -235,6 +247,17 @@ export function isRevenueGeneratingType(taskType: string | null | undefined): bo
 // customer agreements.
 /** ProBuilt's allowance is a flat 3 tons on 15/20/25/30 — not size-scaled. */
 export const PROBUILT_INCLUDED_TONS = 3;
+
+/**
+ * Agreements on ProBuilt's terms: a flat rate on every size with a flat 3-ton
+ * allowance and overage after — never roofing's per-ton dump fee. FBC Roofing
+ * signed the same contract (2026-11-16). Test membership with this, not
+ * `=== "probuilt"`, so the two can't be billed differently by accident.
+ */
+export const PROBUILT_TERMS: readonly string[] = ["probuilt", "fbc_roofing"];
+export function hasProbuiltTerms(agreement: string | null | undefined): boolean {
+  return !!agreement && PROBUILT_TERMS.includes(agreement);
+}
 /** Roofing on another hauler's bin (roofing_hauler_bin): a flat 3 tons on every size. */
 export const HAULER_BIN_INCLUDED_TONS = 3;
 
@@ -287,7 +310,7 @@ export function includedTonsFor(
   // ProBuilt bin was taking the generic 7yd allowance of 4 tons against an
   // agreement that grants 3 on every size, the same way its price was taking
   // the construction 7yd rate against a flat $990.
-  if (agreementType === "probuilt") return PROBUILT_INCLUDED_TONS;
+  if (hasProbuiltTerms(agreementType)) return PROBUILT_INCLUDED_TONS;
   // Same reasons, same place: a roofer's load would otherwise hit the roofing
   // material/agreement branches below and have every ton forgiven.
   if (agreementType === "roofing_hauler_bin") return HAULER_BIN_INCLUDED_TONS;
@@ -393,6 +416,7 @@ export function calculateOverage(
  *               per-ton pass-through. Adding them beside roofing here would
  *               bill every ton twice — once inside the flat $990 and again
  *               as a dump fee.
+ *   - fbc_roofing → 0, for the same reason: it is ProBuilt's contract.
  *   - davey   → 0, for the identical reason: $180/ton starts after the 2-ton
  *               allowance on the Friday 15yd, so calculateOverage owns it.
  *   - surge   → 0, like residential: surge only raises the rental price, and
