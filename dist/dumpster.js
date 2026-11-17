@@ -24,10 +24,11 @@
  * duplicating any math.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.OUT_OF_DISTRICT_SURCHARGE = exports.MIXED_DEBRIS_SURCHARGE = exports.EXTENSION_RATE = exports.ROOFING_DUMP_RATE_PER_TON = exports.OVERAGE_RATE = exports.INCLUDED_TONS = exports.HAULER_BIN_INCLUDED_TONS = exports.PROBUILT_INCLUDED_TONS = exports.SEVEN_YD_DEFAULT_PRICE = exports.SEVEN_YD_BY_MATERIAL = exports.PRICE_BY_AGREEMENT = exports.SURGE_MULTIPLIER = void 0;
+exports.OUT_OF_DISTRICT_SURCHARGE = exports.MIXED_DEBRIS_SURCHARGE = exports.EXTENSION_RATE = exports.ROOFING_DUMP_RATE_PER_TON = exports.OVERAGE_RATE = exports.INCLUDED_TONS = exports.HAULER_BIN_INCLUDED_TONS = exports.PROBUILT_TERMS = exports.PROBUILT_INCLUDED_TONS = exports.SEVEN_YD_DEFAULT_PRICE = exports.SEVEN_YD_BY_MATERIAL = exports.PRICE_BY_AGREEMENT = exports.SURGE_MULTIPLIER = void 0;
 exports.priceForSevenYdByMaterial = priceForSevenYdByMaterial;
 exports.priceFor = priceFor;
 exports.isRevenueGeneratingType = isRevenueGeneratingType;
+exports.hasProbuiltTerms = hasProbuiltTerms;
 exports.includedTonsFor = includedTonsFor;
 exports.calculateRentalTotal = calculateRentalTotal;
 exports.calculateOverage = calculateOverage;
@@ -118,6 +119,18 @@ exports.PRICE_BY_AGREEMENT = {
         // the construction $600/$675 while the New Task dropdown offered $990 —
         // Tiony Laupapa T1376 went out invoiced at $990 against a schedule that
         // said $675.
+        "7yd": { short: 990, long: 990 },
+        "15yd": { short: 990, long: 990 },
+        "20yd": { short: 990, long: 990 },
+        "25yd": { short: 990, long: 990 },
+        "30yd": { short: 990, long: 990 },
+    },
+    // FBC Roofing — the exact ProBuilt agreement under FBC's name (Reno
+    // 2026-11-16: "same agreement and process as Probuilt … just call it FBC
+    // Roofing"). $990 flat every size incl. 7yd, 1-5 days, 3 tons included,
+    // overage after. Its own rows (not a pointer to probuilt's) so a future
+    // change to one contract can't silently move the other.
+    fbc_roofing: {
         "7yd": { short: 990, long: 990 },
         "15yd": { short: 990, long: 990 },
         "20yd": { short: 990, long: 990 },
@@ -229,6 +242,16 @@ function isRevenueGeneratingType(taskType) {
 // customer agreements.
 /** ProBuilt's allowance is a flat 3 tons on 15/20/25/30 — not size-scaled. */
 exports.PROBUILT_INCLUDED_TONS = 3;
+/**
+ * Agreements on ProBuilt's terms: a flat rate on every size with a flat 3-ton
+ * allowance and overage after — never roofing's per-ton dump fee. FBC Roofing
+ * signed the same contract (2026-11-16). Test membership with this, not
+ * `=== "probuilt"`, so the two can't be billed differently by accident.
+ */
+exports.PROBUILT_TERMS = ["probuilt", "fbc_roofing"];
+function hasProbuiltTerms(agreement) {
+    return !!agreement && exports.PROBUILT_TERMS.includes(agreement);
+}
 /** Roofing on another hauler's bin (roofing_hauler_bin): a flat 3 tons on every size. */
 exports.HAULER_BIN_INCLUDED_TONS = 3;
 exports.INCLUDED_TONS = {
@@ -273,7 +296,7 @@ function includedTonsFor(size, customerType, materialType, agreementType, overri
     // ProBuilt bin was taking the generic 7yd allowance of 4 tons against an
     // agreement that grants 3 on every size, the same way its price was taking
     // the construction 7yd rate against a flat $990.
-    if (agreementType === "probuilt")
+    if (hasProbuiltTerms(agreementType))
         return exports.PROBUILT_INCLUDED_TONS;
     // Same reasons, same place: a roofer's load would otherwise hit the roofing
     // material/agreement branches below and have every ton forgiven.
@@ -360,6 +383,7 @@ function calculateOverage(size, tonsDumped, customerType, materialType, agreemen
  *               per-ton pass-through. Adding them beside roofing here would
  *               bill every ton twice — once inside the flat $990 and again
  *               as a dump fee.
+ *   - fbc_roofing → 0, for the same reason: it is ProBuilt's contract.
  *   - davey   → 0, for the identical reason: $180/ton starts after the 2-ton
  *               allowance on the Friday 15yd, so calculateOverage owns it.
  *   - surge   → 0, like residential: surge only raises the rental price, and

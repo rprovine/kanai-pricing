@@ -70,8 +70,11 @@ export const DUMPSTER_PRICES = {
 export const ENV_FEES = {
   freon: 52.50,           // per unit (AC, refrigerator, water dispenser, mini fridge, freezer)
   ewaste: 1.00,           // per lb (TV, computer, etc.)
-  mattressSingle: 50.00,  // per mattress OR box spring
-  mattressSet: 100.00,    // mattress + box spring as a pair
+  // Mattress / box spring: $50 → $100 a piece for rising disposal costs (Reno
+  // 2026-11-17), the same $100 each the dumpster side already charges. A set
+  // is the two pieces, so $200.
+  mattressSingle: 100.00, // per mattress OR box spring
+  mattressSet: 200.00,    // mattress + box spring as a pair
   tire: 36.75,            // standard with rim
   tireNoRim: 31.50,
   tireSemiTractor: 150.00,

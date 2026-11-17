@@ -22,7 +22,7 @@
  * persist owner-configurable rates can pass them in without
  * duplicating any math.
  */
-export type AgreementType = "residential" | "construction" | "roofing" | "government" | "nan" | "probuilt" | "davey" | "surge" | "roofing_hauler_bin";
+export type AgreementType = "residential" | "construction" | "roofing" | "government" | "nan" | "probuilt" | "fbc_roofing" | "davey" | "surge" | "roofing_hauler_bin";
 export declare const SURGE_MULTIPLIER = 1.5;
 export declare const PRICE_BY_AGREEMENT: Record<AgreementType, Record<string, {
     short: number;
@@ -59,6 +59,14 @@ export declare function priceFor(size: string | null | undefined, duration: stri
 export declare function isRevenueGeneratingType(taskType: string | null | undefined): boolean;
 /** ProBuilt's allowance is a flat 3 tons on 15/20/25/30 — not size-scaled. */
 export declare const PROBUILT_INCLUDED_TONS = 3;
+/**
+ * Agreements on ProBuilt's terms: a flat rate on every size with a flat 3-ton
+ * allowance and overage after — never roofing's per-ton dump fee. FBC Roofing
+ * signed the same contract (2026-11-16). Test membership with this, not
+ * `=== "probuilt"`, so the two can't be billed differently by accident.
+ */
+export declare const PROBUILT_TERMS: readonly string[];
+export declare function hasProbuiltTerms(agreement: string | null | undefined): boolean;
 /** Roofing on another hauler's bin (roofing_hauler_bin): a flat 3 tons on every size. */
 export declare const HAULER_BIN_INCLUDED_TONS = 3;
 export declare const INCLUDED_TONS: Record<string, number>;
@@ -133,6 +141,7 @@ export declare function calculateOverage(size: string, tonsDumped: number, custo
  *               per-ton pass-through. Adding them beside roofing here would
  *               bill every ton twice — once inside the flat $990 and again
  *               as a dump fee.
+ *   - fbc_roofing → 0, for the same reason: it is ProBuilt's contract.
  *   - davey   → 0, for the identical reason: $180/ton starts after the 2-ton
  *               allowance on the Friday 15yd, so calculateOverage owns it.
  *   - surge   → 0, like residential: surge only raises the rental price, and
