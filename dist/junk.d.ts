@@ -44,8 +44,8 @@ export declare const DUMPSTER_PRICES: {
 export declare const ENV_FEES: {
     readonly freon: 52.5;
     readonly ewaste: 1;
-    readonly mattressSingle: 50;
-    readonly mattressSet: 100;
+    readonly mattressSingle: 100;
+    readonly mattressSet: 200;
     readonly tire: 36.75;
     readonly tireNoRim: 31.5;
     readonly tireSemiTractor: 150;
