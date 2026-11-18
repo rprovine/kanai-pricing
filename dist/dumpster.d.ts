@@ -87,33 +87,50 @@ export declare function includedTonsFor(size: string, customerType?: string | nu
 export declare const OVERAGE_RATE = 160;
 export declare const ROOFING_DUMP_RATE_PER_TON = 180;
 export declare const EXTENSION_RATE = 50;
-/** Truck #2 rental (roofing_truck_rental): $1,200 a day, every day. */
-export declare const TRUCK_RENTAL_DAILY_RATE = 1200;
-/** Agreements billed by the day rather than per rental. */
-export declare function isDailyRateAgreement(agreement: string | null | undefined): boolean;
+/** Truck #2 rental (roofing_truck_rental): $1,200 for the 3-day rental. */
+export declare const TRUCK_RENTAL_PRICE = 1200;
+/** Days the truck #2 rental price covers. */
+export declare const TRUCK_RENTAL_INCLUDED_DAYS = 3;
+/** Each day past the 3 — extended by the office, or the truck back late. */
+export declare const TRUCK_RENTAL_EXTRA_DAY_RATE = 400;
 /**
- * The truck rental's daily rate: ONE number whatever bin size the task names.
- * The owner's override (`pricing_overrides.roofing_truck_rental`, written to
- * every size by the settings editor) wins — the size's row first, then any row
- * — else $1,200.
+ * Agreements priced by the days booked rather than a short/long schedule —
+ * the truck #2 rental. (Name kept from when it was a flat daily rate.)
  */
-export declare function truckRentalDailyRate(size?: string | null, overrides?: Record<string, Record<string, {
+export declare function isDailyRateAgreement(agreement: string | null | undefined): boolean;
+type TruckOverrides = Record<string, Record<string, {
     short: number;
     long: number;
-}>> | null): number;
-/** Days × the daily rate, at least one day. */
-export declare function truckRentalPrice(days: number, dailyRate?: number): number;
+}>> | null | undefined;
 /**
- * What one more day costs on a rental: the truck + bin rental's daily rate for
- * roofing_truck_rental (the truck is off our board every extra day), else the
- * normal extension rate (`fallback`, $50 unless the owner changed it).
+ * The truck #2 rental's two numbers, whatever bin size the task names: the
+ * 3-day rental price (`short`) and each extra day (`long`). The owner's
+ * override (`pricing_overrides.roofing_truck_rental`, written to every size by
+ * the settings editor) wins — the size's row first, then any row.
+ */
+export declare function truckRentalRates(size?: string | null, overrides?: TruckOverrides): {
+    rental: number;
+    extraDay: number;
+};
+/** Each day past the 3 on the truck #2 rental ($400 unless the owner changed it). */
+export declare function truckRentalDailyRate(size?: string | null, overrides?: TruckOverrides): number;
+/**
+ * The truck #2 rental for `days` days (drop to pickup): the 3-day price, plus
+ * each day past 3 at the extra-day rate. Shorter than 3 days is still the
+ * 3-day price — it's what the rental is sold as.
+ */
+export declare function truckRentalPrice(days: number, rates?: {
+    rental: number;
+    extraDay: number;
+}): number;
+/**
+ * What one more day costs on a rental: the truck #2 rental's extra-day rate
+ * ($400) for roofing_truck_rental, else the normal extension rate
+ * (`fallback`, $50 unless the owner changed it).
  */
 export declare function extensionRateFor(agreement: string | null | undefined, fallback?: number, opts?: {
     size?: string | null;
-    overrides?: Record<string, Record<string, {
-        short: number;
-        long: number;
-    }>> | null;
+    overrides?: TruckOverrides;
 }): number;
 export declare const MIXED_DEBRIS_SURCHARGE = 150;
 export declare const OUT_OF_DISTRICT_SURCHARGE = 100;
@@ -200,4 +217,5 @@ export declare function calculateAgreementDumpFee(params: {
  * minimum-tons floor (e.g. Hawaiian Earth has a 4-ton minimum).
  */
 export declare function calculateDumpCost(ratePerTon: number, tonsDumped: number, minimumTons?: number): number;
+export {};
 //# sourceMappingURL=dumpster.d.ts.map
