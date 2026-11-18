@@ -22,7 +22,7 @@
  * persist owner-configurable rates can pass them in without
  * duplicating any math.
  */
-export type AgreementType = "residential" | "construction" | "roofing" | "government" | "nan" | "probuilt" | "fbc_roofing" | "davey" | "surge" | "roofing_hauler_bin";
+export type AgreementType = "residential" | "construction" | "roofing" | "government" | "nan" | "probuilt" | "fbc_roofing" | "davey" | "surge" | "roofing_hauler_bin" | "roofing_truck_rental";
 export declare const SURGE_MULTIPLIER = 1.5;
 export declare const PRICE_BY_AGREEMENT: Record<AgreementType, Record<string, {
     short: number;
@@ -69,6 +69,8 @@ export declare const PROBUILT_TERMS: readonly string[];
 export declare function hasProbuiltTerms(agreement: string | null | undefined): boolean;
 /** Roofing on another hauler's bin (roofing_hauler_bin): a flat 3 tons on every size. */
 export declare const HAULER_BIN_INCLUDED_TONS = 3;
+/** Truck + bin rental (roofing_truck_rental): 3 tons for the whole rental, any size. */
+export declare const TRUCK_RENTAL_INCLUDED_TONS = 3;
 export declare const INCLUDED_TONS: Record<string, number>;
 /**
  * Construction agreements include extra tonnage on 15yd. Roofing
@@ -85,6 +87,32 @@ export declare function includedTonsFor(size: string, customerType?: string | nu
 export declare const OVERAGE_RATE = 160;
 export declare const ROOFING_DUMP_RATE_PER_TON = 180;
 export declare const EXTENSION_RATE = 50;
+/** Truck + bin rental (roofing_truck_rental): $1,000 a day, every day. */
+export declare const TRUCK_RENTAL_DAILY_RATE = 1000;
+/** Agreements billed by the day rather than per rental. */
+export declare function isDailyRateAgreement(agreement: string | null | undefined): boolean;
+/**
+ * The truck + bin rental's daily rate: the owner's override for the size when
+ * there is one (priceFor reads the same `pricing_overrides` map), else $1,000.
+ */
+export declare function truckRentalDailyRate(size?: string | null, overrides?: Record<string, Record<string, {
+    short: number;
+    long: number;
+}>> | null): number;
+/** Days × the daily rate, at least one day. */
+export declare function truckRentalPrice(days: number, dailyRate?: number): number;
+/**
+ * What one more day costs on a rental: the truck + bin rental's daily rate for
+ * roofing_truck_rental (the truck is off our board every extra day), else the
+ * normal extension rate (`fallback`, $50 unless the owner changed it).
+ */
+export declare function extensionRateFor(agreement: string | null | undefined, fallback?: number, opts?: {
+    size?: string | null;
+    overrides?: Record<string, Record<string, {
+        short: number;
+        long: number;
+    }>> | null;
+}): number;
 export declare const MIXED_DEBRIS_SURCHARGE = 150;
 export declare const OUT_OF_DISTRICT_SURCHARGE = 100;
 /**
@@ -149,6 +177,8 @@ export declare function calculateOverage(size: string, tonsDumped: number, custo
  *   - roofing_hauler_bin → 0, like probuilt: the $1,200 flat includes 3 tons
  *               and only tonnage past that bills, as overage. Matching it with
  *               roofing here would charge $180 on the included tons too.
+ *   - roofing_truck_rental → 0, the same way: 3 tons are in the daily rate
+ *               and only tonnage past that bills, as overage.
  *
  * This is a DUMPSTER-side calculator. It runs at task completion and
  * the result IS customer-billable (unlike the junk-removal dump fee,
