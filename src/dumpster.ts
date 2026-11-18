@@ -149,19 +149,21 @@ export const PRICE_BY_AGREEMENT: Record<AgreementType, Record<string, { short: n
   },
   roofing_truck_rental: {
     // A roofer rents truck #2, whose bin is fixed to it, and keeps it on the
-    // job (Reno 2026-11-18): $1,200 for a 3-DAY rental, $400 for each day past
-    // the 3 — no bin sizes to choose. The columns mean something different on
-    // this tier: `short` is the 3-day rental price and `long` is the rate for
-    // each extra day. Every size row carries the same pair so a size-keyed
-    // lookup can't land on a different number. Price a rental with
-    // truckRentalPrice(days); extra and overdue days bill at extensionRateFor.
-    // 3 tons included for the whole rental, the overage rate after.
-    "7yd":  { short: 1200, long: 400 },
-    "15yd": { short: 1200, long: 400 },
-    "20yd": { short: 1200, long: 400 },
-    "25yd": { short: 1200, long: 400 },
-    "30yd": { short: 1200, long: 400 },
+    // job (Reno 2026-11-18): $1,200 for a 3-day rental, "just like a normal
+    // bin" — the days count the way a bin's do (the drop day isn't a rental
+    // day) and every day past the 3 is the normal $50 extension, extended by
+    // the office, the customer, or the truck coming back late. No bin sizes
+    // and no short/long: every row is the same price so a size- or
+    // duration-keyed lookup can't land on a different number. A swap or a
+    // dump & return on truck #2 starts a new 3-day rental at the same price,
+    // like it does on a bin. 3 tons included per rental, the overage rate after.
+    "7yd":  { short: 1200, long: 1200 },
+    "15yd": { short: 1200, long: 1200 },
+    "20yd": { short: 1200, long: 1200 },
+    "25yd": { short: 1200, long: 1200 },
+    "30yd": { short: 1200, long: 1200 },
   },
+
 };
 
 // Surge rows are residential's rows x SURGE_MULTIPLIER. The 7yd is included:
@@ -359,61 +361,44 @@ export const ROOFING_DUMP_RATE_PER_TON = 180;
 export const EXTENSION_RATE = 50;
 /** Truck #2 rental (roofing_truck_rental): $1,200 for the 3-day rental. */
 export const TRUCK_RENTAL_PRICE = 1200;
-/** Days the truck #2 rental price covers. */
+/** Rental days the truck #2 price covers, counted like a bin's (drop day excluded). */
 export const TRUCK_RENTAL_INCLUDED_DAYS = 3;
-/** Each day past the 3 — extended by the office, or the truck back late. */
-export const TRUCK_RENTAL_EXTRA_DAY_RATE = 400;
 
-/**
- * Agreements priced by the days booked rather than a short/long schedule —
- * the truck #2 rental. (Name kept from when it was a flat daily rate.)
- */
-export function isDailyRateAgreement(agreement: string | null | undefined): boolean {
+/** The truck #2 rental — the per-task tier with our bin fixed to truck #2. */
+export function isTruckRentalAgreement(agreement: string | null | undefined): boolean {
   return agreement === "roofing_truck_rental";
 }
+
+/** @deprecated Use isTruckRentalAgreement — the truck rental is no longer billed by the day. */
+export const isDailyRateAgreement = isTruckRentalAgreement;
 
 type TruckOverrides = Record<string, Record<string, { short: number; long: number }>> | null | undefined;
 
 /**
- * The truck #2 rental's two numbers, whatever bin size the task names: the
- * 3-day rental price (`short`) and each extra day (`long`). The owner's
- * override (`pricing_overrides.roofing_truck_rental`, written to every size by
- * the settings editor) wins — the size's row first, then any row.
+ * The truck #2 rental's 3-day price, whatever bin size or duration the task
+ * names. The owner's override (`pricing_overrides.roofing_truck_rental`,
+ * written to every size by the settings editor) wins — the size's row first,
+ * then any row — else $1,200.
  */
-export function truckRentalRates(size?: string | null, overrides?: TruckOverrides): { rental: number; extraDay: number } {
+export function truckRentalRate(size?: string | null, overrides?: TruckOverrides): number {
   const rows = overrides?.roofing_truck_rental;
   const o = (size ? rows?.[size] : undefined) ?? (rows ? Object.values(rows)[0] : undefined);
-  const pos = (v: unknown, d: number) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : d; };
-  return { rental: pos(o?.short, TRUCK_RENTAL_PRICE), extraDay: pos(o?.long, TRUCK_RENTAL_EXTRA_DAY_RATE) };
-}
-
-/** Each day past the 3 on the truck #2 rental ($400 unless the owner changed it). */
-export function truckRentalDailyRate(size?: string | null, overrides?: TruckOverrides): number {
-  return truckRentalRates(size, overrides).extraDay;
+  const v = Number(o?.short);
+  return Number.isFinite(v) && v > 0 ? v : TRUCK_RENTAL_PRICE;
 }
 
 /**
- * The truck #2 rental for `days` days (drop to pickup): the 3-day price, plus
- * each day past 3 at the extra-day rate. Shorter than 3 days is still the
- * 3-day price — it's what the rental is sold as.
+ * A truck #2 rental booked for `rentalDays` rental days: the 3-day price, plus
+ * each day past 3 at the normal extension rate — the same $50 a bin pays for a
+ * day it's kept past its rental. Shorter than 3 days is still the 3-day price.
  */
-export function truckRentalPrice(days: number, rates: { rental: number; extraDay: number } = truckRentalRates()): number {
-  const d = Math.max(1, Math.round(Number(days) || 0));
-  return rates.rental + Math.max(0, d - TRUCK_RENTAL_INCLUDED_DAYS) * rates.extraDay;
-}
-
-/**
- * What one more day costs on a rental: the truck #2 rental's extra-day rate
- * ($400) for roofing_truck_rental, else the normal extension rate
- * (`fallback`, $50 unless the owner changed it).
- */
-export function extensionRateFor(
-  agreement: string | null | undefined,
-  fallback: number = EXTENSION_RATE,
-  opts?: { size?: string | null; overrides?: TruckOverrides },
+export function truckRentalPrice(
+  rentalDays: number,
+  rental: number = TRUCK_RENTAL_PRICE,
+  extraDayRate: number = EXTENSION_RATE,
 ): number {
-  if (isDailyRateAgreement(agreement)) return truckRentalDailyRate(opts?.size, opts?.overrides);
-  return fallback;
+  const d = Math.max(0, Math.round(Number(rentalDays) || 0));
+  return rental + Math.max(0, d - TRUCK_RENTAL_INCLUDED_DAYS) * extraDayRate;
 }
 export const MIXED_DEBRIS_SURCHARGE = 150;
 export const OUT_OF_DISTRICT_SURCHARGE = 100;
