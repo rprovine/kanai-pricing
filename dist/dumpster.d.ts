@@ -89,49 +89,29 @@ export declare const ROOFING_DUMP_RATE_PER_TON = 180;
 export declare const EXTENSION_RATE = 50;
 /** Truck #2 rental (roofing_truck_rental): $1,200 for the 3-day rental. */
 export declare const TRUCK_RENTAL_PRICE = 1200;
-/** Days the truck #2 rental price covers. */
+/** Rental days the truck #2 price covers, counted like a bin's (drop day excluded). */
 export declare const TRUCK_RENTAL_INCLUDED_DAYS = 3;
-/** Each day past the 3 — extended by the office, or the truck back late. */
-export declare const TRUCK_RENTAL_EXTRA_DAY_RATE = 400;
-/**
- * Agreements priced by the days booked rather than a short/long schedule —
- * the truck #2 rental. (Name kept from when it was a flat daily rate.)
- */
-export declare function isDailyRateAgreement(agreement: string | null | undefined): boolean;
+/** The truck #2 rental — the per-task tier with our bin fixed to truck #2. */
+export declare function isTruckRentalAgreement(agreement: string | null | undefined): boolean;
+/** @deprecated Use isTruckRentalAgreement — the truck rental is no longer billed by the day. */
+export declare const isDailyRateAgreement: typeof isTruckRentalAgreement;
 type TruckOverrides = Record<string, Record<string, {
     short: number;
     long: number;
 }>> | null | undefined;
 /**
- * The truck #2 rental's two numbers, whatever bin size the task names: the
- * 3-day rental price (`short`) and each extra day (`long`). The owner's
- * override (`pricing_overrides.roofing_truck_rental`, written to every size by
- * the settings editor) wins — the size's row first, then any row.
+ * The truck #2 rental's 3-day price, whatever bin size or duration the task
+ * names. The owner's override (`pricing_overrides.roofing_truck_rental`,
+ * written to every size by the settings editor) wins — the size's row first,
+ * then any row — else $1,200.
  */
-export declare function truckRentalRates(size?: string | null, overrides?: TruckOverrides): {
-    rental: number;
-    extraDay: number;
-};
-/** Each day past the 3 on the truck #2 rental ($400 unless the owner changed it). */
-export declare function truckRentalDailyRate(size?: string | null, overrides?: TruckOverrides): number;
+export declare function truckRentalRate(size?: string | null, overrides?: TruckOverrides): number;
 /**
- * The truck #2 rental for `days` days (drop to pickup): the 3-day price, plus
- * each day past 3 at the extra-day rate. Shorter than 3 days is still the
- * 3-day price — it's what the rental is sold as.
+ * A truck #2 rental booked for `rentalDays` rental days: the 3-day price, plus
+ * each day past 3 at the normal extension rate — the same $50 a bin pays for a
+ * day it's kept past its rental. Shorter than 3 days is still the 3-day price.
  */
-export declare function truckRentalPrice(days: number, rates?: {
-    rental: number;
-    extraDay: number;
-}): number;
-/**
- * What one more day costs on a rental: the truck #2 rental's extra-day rate
- * ($400) for roofing_truck_rental, else the normal extension rate
- * (`fallback`, $50 unless the owner changed it).
- */
-export declare function extensionRateFor(agreement: string | null | undefined, fallback?: number, opts?: {
-    size?: string | null;
-    overrides?: TruckOverrides;
-}): number;
+export declare function truckRentalPrice(rentalDays: number, rental?: number, extraDayRate?: number): number;
 export declare const MIXED_DEBRIS_SURCHARGE = 150;
 export declare const OUT_OF_DISTRICT_SURCHARGE = 100;
 /**
