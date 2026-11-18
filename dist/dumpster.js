@@ -157,17 +157,18 @@ exports.PRICE_BY_AGREEMENT = {
         "30yd": { short: 1200, long: 1200 },
     },
     roofing_truck_rental: {
-        // A roofer rents truck #9 with a bin on it and keeps both on the job
-        // (Reno 2026-11-18): $1,000 a DAY on every size, 3 tons included for the
-        // whole rental, the overage rate after. These rows are ONE day's rate —
-        // the consumer multiplies by the days booked (truckRentalPrice), and every
-        // extra or overdue day bills at the same rate (extensionRateFor), not the
-        // $50/day a bin-only rental pays. Per-task, like roofing_hauler_bin.
-        "7yd": { short: 1000, long: 1000 },
-        "15yd": { short: 1000, long: 1000 },
-        "20yd": { short: 1000, long: 1000 },
-        "25yd": { short: 1000, long: 1000 },
-        "30yd": { short: 1000, long: 1000 },
+        // A roofer rents truck #2, whose bin is fixed to it, and keeps it on the
+        // job (Reno 2026-11-18): ONE daily price, $1,200 — no sizes to choose and
+        // no short/long rentals. Every row is the same day rate so a size-keyed
+        // lookup can't land on a different number; the consumer multiplies by the
+        // days booked (truckRentalPrice), and every extra or overdue day bills at
+        // the same rate (extensionRateFor), not the $50/day a bin rental pays.
+        // 3 tons included for the whole rental, the overage rate after.
+        "7yd": { short: 1200, long: 1200 },
+        "15yd": { short: 1200, long: 1200 },
+        "20yd": { short: 1200, long: 1200 },
+        "25yd": { short: 1200, long: 1200 },
+        "30yd": { short: 1200, long: 1200 },
     },
 };
 // Surge rows are residential's rows x SURGE_MULTIPLIER. The 7yd is included:
@@ -271,7 +272,7 @@ function hasProbuiltTerms(agreement) {
 }
 /** Roofing on another hauler's bin (roofing_hauler_bin): a flat 3 tons on every size. */
 exports.HAULER_BIN_INCLUDED_TONS = 3;
-/** Truck + bin rental (roofing_truck_rental): 3 tons for the whole rental, any size. */
+/** Truck #2 rental (roofing_truck_rental): 3 tons for the whole rental. */
 exports.TRUCK_RENTAL_INCLUDED_TONS = 3;
 exports.INCLUDED_TONS = {
     "7yd": 4,
@@ -352,19 +353,23 @@ function includedTonsFor(size, customerType, materialType, agreementType, overri
 exports.OVERAGE_RATE = 160;
 exports.ROOFING_DUMP_RATE_PER_TON = 180;
 exports.EXTENSION_RATE = 50;
-/** Truck + bin rental (roofing_truck_rental): $1,000 a day, every day. */
-exports.TRUCK_RENTAL_DAILY_RATE = 1000;
+/** Truck #2 rental (roofing_truck_rental): $1,200 a day, every day. */
+exports.TRUCK_RENTAL_DAILY_RATE = 1200;
 /** Agreements billed by the day rather than per rental. */
 function isDailyRateAgreement(agreement) {
     return agreement === "roofing_truck_rental";
 }
 /**
- * The truck + bin rental's daily rate: the owner's override for the size when
- * there is one (priceFor reads the same `pricing_overrides` map), else $1,000.
+ * The truck rental's daily rate: ONE number whatever bin size the task names.
+ * The owner's override (`pricing_overrides.roofing_truck_rental`, written to
+ * every size by the settings editor) wins — the size's row first, then any row
+ * — else $1,200.
  */
 function truckRentalDailyRate(size, overrides) {
-    const o = size ? overrides?.roofing_truck_rental?.[size] : undefined;
-    return o?.short ?? exports.TRUCK_RENTAL_DAILY_RATE;
+    const rows = overrides?.roofing_truck_rental;
+    const o = (size ? rows?.[size] : undefined) ?? (rows ? Object.values(rows)[0] : undefined);
+    const v = Number(o?.short);
+    return Number.isFinite(v) && v > 0 ? v : exports.TRUCK_RENTAL_DAILY_RATE;
 }
 /** Days × the daily rate, at least one day. */
 function truckRentalPrice(days, dailyRate = exports.TRUCK_RENTAL_DAILY_RATE) {
@@ -441,7 +446,7 @@ function calculateOverage(size, tonsDumped, customerType, materialType, agreemen
  *   - roofing_hauler_bin → 0, like probuilt: the $1,200 flat includes 3 tons
  *               and only tonnage past that bills, as overage. Matching it with
  *               roofing here would charge $180 on the included tons too.
- *   - roofing_truck_rental → 0, the same way: 3 tons are in the daily rate
+ *   - roofing_truck_rental → 0, the same way: 3 tons are in the rental
  *               and only tonnage past that bills, as overage.
  *
  * This is a DUMPSTER-side calculator. It runs at task completion and

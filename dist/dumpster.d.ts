@@ -69,7 +69,7 @@ export declare const PROBUILT_TERMS: readonly string[];
 export declare function hasProbuiltTerms(agreement: string | null | undefined): boolean;
 /** Roofing on another hauler's bin (roofing_hauler_bin): a flat 3 tons on every size. */
 export declare const HAULER_BIN_INCLUDED_TONS = 3;
-/** Truck + bin rental (roofing_truck_rental): 3 tons for the whole rental, any size. */
+/** Truck #2 rental (roofing_truck_rental): 3 tons for the whole rental. */
 export declare const TRUCK_RENTAL_INCLUDED_TONS = 3;
 export declare const INCLUDED_TONS: Record<string, number>;
 /**
@@ -87,13 +87,15 @@ export declare function includedTonsFor(size: string, customerType?: string | nu
 export declare const OVERAGE_RATE = 160;
 export declare const ROOFING_DUMP_RATE_PER_TON = 180;
 export declare const EXTENSION_RATE = 50;
-/** Truck + bin rental (roofing_truck_rental): $1,000 a day, every day. */
-export declare const TRUCK_RENTAL_DAILY_RATE = 1000;
+/** Truck #2 rental (roofing_truck_rental): $1,200 a day, every day. */
+export declare const TRUCK_RENTAL_DAILY_RATE = 1200;
 /** Agreements billed by the day rather than per rental. */
 export declare function isDailyRateAgreement(agreement: string | null | undefined): boolean;
 /**
- * The truck + bin rental's daily rate: the owner's override for the size when
- * there is one (priceFor reads the same `pricing_overrides` map), else $1,000.
+ * The truck rental's daily rate: ONE number whatever bin size the task names.
+ * The owner's override (`pricing_overrides.roofing_truck_rental`, written to
+ * every size by the settings editor) wins — the size's row first, then any row
+ * — else $1,200.
  */
 export declare function truckRentalDailyRate(size?: string | null, overrides?: Record<string, Record<string, {
     short: number;
@@ -177,7 +179,7 @@ export declare function calculateOverage(size: string, tonsDumped: number, custo
  *   - roofing_hauler_bin → 0, like probuilt: the $1,200 flat includes 3 tons
  *               and only tonnage past that bills, as overage. Matching it with
  *               roofing here would charge $180 on the included tons too.
- *   - roofing_truck_rental → 0, the same way: 3 tons are in the daily rate
+ *   - roofing_truck_rental → 0, the same way: 3 tons are in the rental
  *               and only tonnage past that bills, as overage.
  *
  * This is a DUMPSTER-side calculator. It runs at task completion and
