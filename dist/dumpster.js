@@ -47,6 +47,13 @@ const junk_1 = require("./junk");
 // consumer (kanai-dispatch) owns the peak-date windows and decides whether a
 // residential booking is priced as surge.
 exports.SURGE_MULTIPLIER = 1.5;
+// ─── Business surge (peak-period construction) ─────────────────────
+// The same peak markup on a BUSINESS rental (Reno 2026-11-27: "make surge
+// apply to businesses too"): construction's rental x SURGE_MULTIPLIER, and
+// everything else is construction's — included tons, overage, extensions,
+// surcharges. Its own type rather than `surge` because surge is residential's
+// rate: a business on it would pay less than its own rate x 1.5 on the 15yd
+// and 20yd and sign the residential schedule. The consumer decides when.
 const surgeOf = (n) => Math.round(n * exports.SURGE_MULTIPLIER * 100) / 100;
 const surgeTier = (t) => ({ short: surgeOf(t.short), long: surgeOf(t.long) });
 // ─── Rental price tables (base before tax) ─────────────────────────
@@ -142,6 +149,8 @@ exports.PRICE_BY_AGREEMENT = {
     },
     // Surge — filled in just below from residential, so the two can never drift.
     surge: {},
+    // Business surge — filled in just below from construction, the same way.
+    construction_surge: {},
     roofing_hauler_bin: {
         // A roofer's bin when ours are all out: we rent a bin from another hauler
         // and OUR truck delivers, picks up and dumps it (Reno 2026-11-03). One flat
@@ -179,6 +188,9 @@ exports.PRICE_BY_AGREEMENT = {
 // never leave surge behind at the old base.
 for (const [size, tier] of Object.entries({ "7yd": exports.PRICE_BY_AGREEMENT.construction["7yd"], ...exports.PRICE_BY_AGREEMENT.residential })) {
     exports.PRICE_BY_AGREEMENT.surge[size] = surgeTier(tier);
+}
+for (const [size, tier] of Object.entries(exports.PRICE_BY_AGREEMENT.construction)) {
+    exports.PRICE_BY_AGREEMENT.construction_surge[size] = surgeTier(tier);
 }
 // ─── 7yd material-specific pricing ─────────────────────────────────
 // The public booking flow on kanai-website prices 7yd by material
@@ -235,6 +247,13 @@ function priceFor(size, duration, agreement, overrides) {
     if (agreement === "surge" && !overrides?.surge?.[size]) {
         const base = overrides?.residential?.[size] ?? exports.PRICE_BY_AGREEMENT.residential[size]
             ?? overrides?.construction?.[size] ?? exports.PRICE_BY_AGREEMENT.construction[size];
+        if (!base)
+            return null;
+        return surgeOf(duration === "long" ? base.long : base.short);
+    }
+    // Business surge follows the owner's CONSTRUCTION rates the same way.
+    if (agreement === "construction_surge" && !overrides?.construction_surge?.[size]) {
+        const base = overrides?.construction?.[size] ?? exports.PRICE_BY_AGREEMENT.construction[size];
         if (!base)
             return null;
         return surgeOf(duration === "long" ? base.long : base.short);
@@ -306,6 +325,15 @@ exports.INCLUDED_TONS = {
  */
 function includedTonsFor(size, customerType, materialType, agreementType, overrides) {
     const tons = (k) => overrides?.included_tons?.[k] ?? exports.INCLUDED_TONS[k] ?? 0;
+    // Business surge only raises the rental: its tonnage is construction's,
+    // whichever of the two arguments a caller passed the agreement in.
+    // A business-surge AGREEMENT is a business rental, so it gets construction's
+    // allowance even where the caller's customer_type says "standard" (callers
+    // map agreement "construction" to customer type "construction" by hand).
+    if (customerType === "construction_surge" || agreementType === "construction_surge")
+        customerType = "construction";
+    if (agreementType === "construction_surge")
+        agreementType = "construction";
     // ProBuilt is decided FIRST, ahead of both branches below.
     //
     // Ahead of the material check because they are a roofing company hauling
@@ -442,6 +470,7 @@ function calculateOverage(size, tonsDumped, customerType, materialType, agreemen
  *               allowance on the Friday 15yd, so calculateOverage owns it.
  *   - surge   → 0, like residential: surge only raises the rental price, and
  *               tonnage past the allowance is overage at the normal rate.
+ *   - construction_surge → 0, like construction, for the same reason.
  *   - roofing_hauler_bin → 0, like probuilt: the $1,200 flat includes 3 tons
  *               and only tonnage past that bills, as overage. Matching it with
  *               roofing here would charge $180 on the included tons too.
