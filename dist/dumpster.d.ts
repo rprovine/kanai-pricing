@@ -22,7 +22,7 @@
  * persist owner-configurable rates can pass them in without
  * duplicating any math.
  */
-export type AgreementType = "residential" | "construction" | "roofing" | "government" | "nan" | "probuilt" | "fbc_roofing" | "davey" | "surge" | "roofing_hauler_bin" | "roofing_truck_rental";
+export type AgreementType = "residential" | "construction" | "roofing" | "government" | "nan" | "probuilt" | "fbc_roofing" | "davey" | "surge" | "construction_surge" | "roofing_hauler_bin" | "roofing_truck_rental";
 export declare const SURGE_MULTIPLIER = 1.5;
 export declare const PRICE_BY_AGREEMENT: Record<AgreementType, Record<string, {
     short: number;
@@ -173,6 +173,7 @@ export declare function calculateOverage(size: string, tonsDumped: number, custo
  *               allowance on the Friday 15yd, so calculateOverage owns it.
  *   - surge   → 0, like residential: surge only raises the rental price, and
  *               tonnage past the allowance is overage at the normal rate.
+ *   - construction_surge → 0, like construction, for the same reason.
  *   - roofing_hauler_bin → 0, like probuilt: the $1,200 flat includes 3 tons
  *               and only tonnage past that bills, as overage. Matching it with
  *               roofing here would charge $180 on the included tons too.
