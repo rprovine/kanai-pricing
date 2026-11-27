@@ -327,7 +327,10 @@ function includedTonsFor(size, customerType, materialType, agreementType, overri
     const tons = (k) => overrides?.included_tons?.[k] ?? exports.INCLUDED_TONS[k] ?? 0;
     // Business surge only raises the rental: its tonnage is construction's,
     // whichever of the two arguments a caller passed the agreement in.
-    if (customerType === "construction_surge")
+    // A business-surge AGREEMENT is a business rental, so it gets construction's
+    // allowance even where the caller's customer_type says "standard" (callers
+    // map agreement "construction" to customer type "construction" by hand).
+    if (customerType === "construction_surge" || agreementType === "construction_surge")
         customerType = "construction";
     if (agreementType === "construction_surge")
         agreementType = "construction";
